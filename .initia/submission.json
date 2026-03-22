@@ -1,7 +1,7 @@
 {
   "project_name": "InitiaAgent",
-  "repo_url": "https://github.com/AyushJangid/initia-agent",
-  "commit_sha": "",
+  "repo_url": "https://github.com/AJ-EN/initia-agent",
+  "commit_sha": "6ceb21d8ac7164a388c01ff520d840d70b56b20b",
   "rollup_chain_id": "initia-agent-1",
   "deployed_address": "0x37bedf9964326b808fbfe344edb0d564c1213dda",
   "vm": "move",
