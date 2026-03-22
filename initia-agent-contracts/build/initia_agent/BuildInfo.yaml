@@ -1,0 +1,48 @@
+---
+compiled_package_info:
+  package_name: initia_agent
+  address_alias_instantiation:
+    cafe: 000000000000000000000000000000000000000000000000000000000000cafe
+    initia_agent: 00000000000000000000000037bedf9964326b808fbfe344edb0d564c1213dda
+    minitia_std: "0000000000000000000000000000000000000000000000000000000000000001"
+    relayer: 0000000000000000000000003d18d54532fc42e567090852db6eb21fa528f952
+    std: "0000000000000000000000000000000000000000000000000000000000000001"
+  source_digest: 303BE18AAB775D3AA1469DF461283CF7C02D116BCCF1F64323E0E2FFC5BDDCE6
+  build_flags:
+    dev_mode: false
+    test_mode: false
+    override_std: ~
+    generate_docs: false
+    generate_abis: false
+    generate_move_model: true
+    full_model_generation: false
+    install_dir: "."
+    force_recompilation: false
+    additional_named_addresses:
+      initia_agent: 00000000000000000000000037bedf9964326b808fbfe344edb0d564c1213dda
+    fetch_deps_only: false
+    skip_fetch_latest_git_deps: true
+    compiler_config:
+      bytecode_version: 7
+      known_attributes:
+        - bytecode_instruction
+        - deprecated
+        - event
+        - expected_failure
+        - "lint::skip"
+        - module_lock
+        - native_interface
+        - persistent
+        - test
+        - test_only
+        - verify_only
+        - view
+      skip_attribute_checks: false
+      compiler_version: V2_0
+      language_version: V2_1
+      experiments: []
+dependencies:
+  - MinitiaStdlib
+  - MoveNursery
+  - MoveStdlib
+bytecode_deps: []

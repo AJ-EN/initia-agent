@@ -1,0 +1,12 @@
+{
+  "project_name": "InitiaAgent",
+  "repo_url": "https://github.com/AyushJangid/initia-agent",
+  "commit_sha": "",
+  "rollup_chain_id": "initia-agent-1",
+  "deployed_address": "0x37bedf9964326b808fbfe344edb0d564c1213dda",
+  "vm": "move",
+  "native_feature": "auto-signing",
+  "core_logic_path": "initia-agent-contracts/sources/agent_actions.move",
+  "native_feature_frontend_path": "initia-agent-frontend/src/App.jsx",
+  "demo_video_url": ""
+}

@@ -1,0 +1,13 @@
+[package]
+name = "initia_agent"
+version = "0.0.0"
+
+[dependencies]
+MinitiaStdlib = { git = "https://github.com/initia-labs/move-natives.git", subdir = "minitia_stdlib", rev = "v1.2.0" }
+
+[addresses]
+std = "0x1"
+initia_agent = "_"
+
+[dev-addresses]
+initia_agent = "0x42"
