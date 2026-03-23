@@ -796,6 +796,130 @@ code {
 .inventory-card--rose .inventory-card__value   { color: var(--danger); }
 
 /* ───────────────────────────────────────────────
+   Bridge section
+   ─────────────────────────────────────────────── */
+
+.bridge-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(108, 229, 232, 0.16);
+  background:
+    linear-gradient(180deg, rgba(11, 22, 40, 0.92) 0%, rgba(7, 14, 26, 0.96) 100%);
+}
+
+.bridge-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bridge-section__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bridge-section__copy h3 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.bridge-section__copy p:last-child {
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.bridge-balance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bridge-balance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(133, 168, 215, 0.1);
+}
+
+.bridge-balance-card__eyebrow {
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bridge-balance-card__value {
+  font-size: 1.32rem;
+  line-height: 1.1;
+}
+
+.bridge-balance-card__meta {
+  color: rgba(153, 168, 194, 0.72);
+  font-size: 0.82rem;
+}
+
+.bridge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bridge-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
+  color: #07111f;
+  font-weight: 800;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.bridge-button:hover {
+  transform: translateY(-1px);
+}
+
+.bridge-button--secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.bridge-note-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-soft);
+}
+
+.bridge-note {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.bridge-note--success {
+  color: var(--success);
+}
+
+/* ───────────────────────────────────────────────
    Crafting progress
    ─────────────────────────────────────────────── */
 
@@ -1284,6 +1408,10 @@ code {
   }
 
   .inventory-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bridge-balance-grid {
     grid-template-columns: 1fr;
   }
 

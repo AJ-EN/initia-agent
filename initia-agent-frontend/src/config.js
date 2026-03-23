@@ -5,12 +5,17 @@ export const appConfig = {
   rpcUrl: env.VITE_INITIA_RPC_URL ?? "http://localhost:26657",
   restUrl: env.VITE_INITIA_REST_URL ?? "http://localhost:1317",
   indexerUrl: env.VITE_INITIA_INDEXER_URL ?? "http://localhost:8080",
+  l1ChainId: env.VITE_INITIA_L1_CHAIN_ID ?? "initiation-2",
+  l1RestUrl: env.VITE_INITIA_L1_REST_URL ?? "https://rest.testnet.initia.xyz",
   moduleAddress:
     env.VITE_MODULE_ADDRESS ?? "init1x7ldlxtyxf4cpraludzwmvx4vnqjz0w6em2qs9",
   moduleName: "agent_actions",
   nativeDenom: env.VITE_NATIVE_DENOM ?? "umin",
   nativeSymbol: env.VITE_NATIVE_SYMBOL ?? "MIN",
   nativeDecimals: Number(env.VITE_NATIVE_DECIMALS ?? 6),
+  bridgeDenom: env.VITE_INITIA_BRIDGE_DENOM ?? "uinit",
+  bridgeSymbol: env.VITE_INITIA_BRIDGE_SYMBOL ?? "INIT",
+  bridgeDecimals: Number(env.VITE_INITIA_BRIDGE_DECIMALS ?? 6),
 };
 
 export const customChain = {

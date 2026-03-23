@@ -1,3 +1,5 @@
+import { appConfig } from "./config.js";
+
 const NUMBER_WORDS = {
   one: 1,
   two: 2,
@@ -14,6 +16,9 @@ const NUMBER_WORDS = {
 const HELP_TEXT = [
   "Here are the commands I can handle locally right now:",
   "",
+  "- `deposit 1 INIT from L1`",
+  "- `bridge INIT to my appchain`",
+  "- `fund my account from L1`",
   "- `mint shard`, `mine shard`, `get shard`",
   "- `mint 5 shards`",
   "- `mint gem`, `mine gem`, `get gem`",
@@ -86,6 +91,21 @@ function extractQuantity(normalized) {
   return 1;
 }
 
+function extractRequestedAmount(normalized) {
+  const numericMatch = normalized.match(/\b(\d+(?:\.\d+)?)\b/);
+  if (numericMatch) {
+    return numericMatch[1];
+  }
+
+  for (const [word, value] of Object.entries(NUMBER_WORDS)) {
+    if (new RegExp(`\\b${word}\\b`).test(normalized)) {
+      return String(value);
+    }
+  }
+
+  return null;
+}
+
 function pluralize(quantity, singular, plural) {
   return quantity === 1 ? singular : plural;
 }
@@ -105,6 +125,7 @@ function buildActionPlan(definition, quantity) {
       quantity === 1
         ? `I parsed that as: ${definition.presentTense}.`
         : `I parsed that as: ${definition.presentTense} ${quantity} times to create ${quantity} ${itemLabel}.`,
+    bridge: null,
   };
 }
 
@@ -115,11 +136,48 @@ function buildInventoryQuery(walletAddress) {
     message: walletAddress
       ? `Checking inventory for \`${walletAddress}\`.`
       : "Connect your wallet first, then I can check your inventory.",
+    bridge: null,
   };
+}
+
+function buildBridgePlan(amount) {
+  return {
+    type: "bridge",
+    actions: [],
+    bridge: {
+      kind: "deposit_from_l1",
+      amount,
+      denom: appConfig.bridgeDenom,
+      sourceChainId: appConfig.l1ChainId,
+      destinationChainId: appConfig.chainId,
+    },
+    message: amount
+      ? `I'll open Interwoven Bridge so you can deposit ${amount} ${appConfig.bridgeSymbol} from L1 into \`${appConfig.chainId}\`.`
+      : `I'll open Interwoven Bridge so you can deposit ${appConfig.bridgeSymbol} from L1 into \`${appConfig.chainId}\`.`,
+  };
+}
+
+function isBridgeRequest(normalized) {
+  const bridgeVerb =
+    /\bdeposit\b/.test(normalized) ||
+    /\bbridge\b/.test(normalized) ||
+    (/\bfund\b/.test(normalized) &&
+      (/\baccount\b/.test(normalized) || /\bwallet\b/.test(normalized)));
+  const bridgeContext =
+    /\binit\b/.test(normalized) ||
+    /\bl1\b/.test(normalized) ||
+    /\bappchain\b/.test(normalized) ||
+    /\brollup\b/.test(normalized) ||
+    /\baccount\b/.test(normalized) ||
+    /\bwallet\b/.test(normalized);
+
+  return bridgeVerb && bridgeContext;
 }
 
 export function formatActionName(functionName) {
   switch (functionName) {
+    case "deposit_from_l1":
+      return "deposit from L1";
     case "mint_shard":
       return "mint shard";
     case "mint_gem":
@@ -153,6 +211,7 @@ export async function askAgent(message, walletAddress, inventory) {
       type: data.type || "chat",
       actions: data.actions || [],
       message: data.message || "Done.",
+      bridge: data.bridge || null,
     };
   } catch (err) {
     console.warn("AI backend unreachable, falling back to local parsing:", err.message);
@@ -185,6 +244,10 @@ export function parseAgentMessage(message, walletAddress) {
     return buildInventoryQuery(walletAddress);
   }
 
+  if (isBridgeRequest(normalized)) {
+    return buildBridgePlan(extractRequestedAmount(normalized));
+  }
+
   const quantity = extractQuantity(normalized);
   const matchingAction = ACTION_DEFINITIONS.find((definition) =>
     definition.match(normalized),
@@ -197,6 +260,7 @@ export function parseAgentMessage(message, walletAddress) {
   return {
     type: "help",
     actions: [],
+    bridge: null,
     message: [
       "I couldn't map that request to an onchain action yet.",
       "",

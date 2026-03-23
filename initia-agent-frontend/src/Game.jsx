@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { RefreshCw, Wallet } from "lucide-react";
 
+import Bridge from "./Bridge.jsx";
 import { appConfig, shortenAddress } from "./config.js";
 import {
   EMPTY_INVENTORY,
@@ -253,6 +254,11 @@ export default function Game({ onRefreshReady, activityLog }) {
                 </article>
               ))}
             </div>
+
+            <Bridge
+              initiaAddress={initiaAddress}
+              refreshNonce={lastUpdated?.getTime() ?? 0}
+            />
 
             <CraftingProgress inventory={inventory} />
 

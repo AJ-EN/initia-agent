@@ -4,6 +4,11 @@ import ReactMarkdown from "react-markdown";
 import { Bot, SendHorizontal, User } from "lucide-react";
 
 import { askAgent, formatActionName } from "./agent.js";
+import {
+  BRIDGE_STATUS_REFRESH_DELAY_MS,
+  formatRequestedInitAmount,
+  openInitDepositFlow,
+} from "./bridge.js";
 import { appConfig } from "./config.js";
 import { executeAgentActions } from "./executor.js";
 import { fetchInventory } from "./inventory.js";
@@ -38,6 +43,7 @@ const initialMessages = [
       "I can execute Move transactions on your behalf using natural language. Try commands like:",
       "",
       "- `mint 5 shards` \u2014 mint resources",
+      "- `deposit 1 INIT from L1` \u2014 open Interwoven Bridge",
       "- `craft relic` \u2014 combine shards + gems",
       "- `upgrade relic` \u2014 forge legendary items",
       "- `check inventory` \u2014 view your holdings",
@@ -101,8 +107,25 @@ function formatExecutionError(error) {
   ].join("\n");
 }
 
+function formatBridgeExecutionMessage(intent) {
+  const amountLabel = intent.bridge?.amount
+    ? formatRequestedInitAmount(intent.bridge.amount)
+    : appConfig.bridgeSymbol;
+
+  return [
+    intent.message,
+    "",
+    `\ud83c\udf09 Opened Interwoven Bridge deposit flow into \`${appConfig.chainId}\`.`,
+    "",
+    intent.bridge?.amount
+      ? `Confirm or enter **${amountLabel}** in the bridge modal to complete the L1 \u2192 L2 deposit.`
+      : `Choose how much **${amountLabel}** to bridge from L1 in the modal, then confirm the transfer there.`,
+  ].join("\n");
+}
+
 export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
-  const { initiaAddress, requestTxSync, autoSign } = useInterwovenKit();
+  const { initiaAddress, requestTxSync, autoSign, openDeposit } =
+    useInterwovenKit();
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -170,6 +193,35 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
           "assistant",
           [intent.message, "", formatInventoryMessage(inventory)].join("\n"),
           "info",
+        ),
+      ]);
+      return;
+    }
+
+    if (intent.type === "bridge") {
+      try {
+        openInitDepositFlow({
+          openDeposit,
+          recipientAddress: initiaAddress,
+        });
+      } catch (cause) {
+        throw new Error(
+          "Failed to open the Interwoven Bridge deposit flow.",
+          { cause },
+        );
+      }
+
+      window.clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        void onRequestInventoryRefresh?.();
+      }, BRIDGE_STATUS_REFRESH_DELAY_MS);
+
+      setMessages((current) => [
+        ...current,
+        createMessage(
+          "assistant",
+          formatBridgeExecutionMessage(intent),
+          "action",
         ),
       ]);
       return;
