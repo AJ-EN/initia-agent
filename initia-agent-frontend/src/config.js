@@ -16,6 +16,7 @@ export const appConfig = {
   bridgeDenom: env.VITE_INITIA_BRIDGE_DENOM ?? "uinit",
   bridgeSymbol: env.VITE_INITIA_BRIDGE_SYMBOL ?? "INIT",
   bridgeDecimals: Number(env.VITE_INITIA_BRIDGE_DECIMALS ?? 6),
+  usernameRegistrationUrl: "https://usernames.testnet.initia.xyz",
 };
 
 export const customChain = {

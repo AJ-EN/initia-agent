@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import ReactMarkdown from "react-markdown";
-import { Bot, SendHorizontal, User } from "lucide-react";
+import { Bot, RotateCcw, SendHorizontal, User } from "lucide-react";
 
-import { askAgent, formatActionName } from "./agent.js";
+import { askAgent, clearAgentHistory, formatActionName } from "./agent.js";
 import {
   BRIDGE_STATUS_REFRESH_DELAY_MS,
   formatRequestedInitAmount,
@@ -12,8 +12,9 @@ import {
 import { appConfig } from "./config.js";
 import { executeAgentActions } from "./executor.js";
 import { fetchInventory } from "./inventory.js";
+import { USERNAME_REGISTRATION_URL } from "./username.js";
 
-function createMessage(role, content, variant = "info") {
+function createMessage(role, content, variant = "info", extra = {}) {
   return {
     id:
       globalThis.crypto?.randomUUID?.() ??
@@ -22,6 +23,7 @@ function createMessage(role, content, variant = "info") {
     content,
     variant,
     timestamp: new Date(),
+    ...extra,
   };
 }
 
@@ -34,22 +36,30 @@ function formatTime(date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function generateSessionId() {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `s-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
 const initialMessages = [
   createMessage(
     "assistant",
     [
       "**InitiaAgent is live onchain.**",
       "",
-      "I can execute Move transactions on your behalf using natural language. Try commands like:",
+      "I'm your AI companion for managing resources on the Initia blockchain. I can strategize, execute transactions, and track your progress. Try:",
       "",
-      "- `mint 5 shards` \u2014 mint resources",
-      "- `deposit 1 INIT from L1` \u2014 open Interwoven Bridge",
-      "- `craft relic` \u2014 combine shards + gems",
-      "- `upgrade relic` \u2014 forge legendary items",
-      "- `check inventory` \u2014 view your holdings",
-      "- `help` \u2014 see all commands",
+      "- `mint 5 shards` \u2014 gather resources",
+      "- `deposit 1 INIT from L1` \u2014 bridge funds",
+      "- `craft relic` \u2014 combine \u26a1 + \ud83d\udc8e \u2192 \ud83d\udd2e",
+      "- `upgrade relic` \u2014 forge \ud83d\udc51 legendary items",
+      "- `register my username` \u2014 claim a .init name",
+      "- Or just chat \u2014 ask me anything about Initia!",
     ].join("\n"),
     "info",
+    { suggestions: ["Mint 5 shards", "Check inventory", "What is Initia?"] },
   ),
 ];
 
@@ -72,13 +82,22 @@ function formatExecutionMessage(intent, results, autoSignEnabled) {
       `${index + 1}. **${formatActionName(action.functionName)}** \u2192 \`${shortenHash(txHash)}\``,
   );
 
-  return [
+  const parts = [
     intent.message,
     "",
     `\u2705 Submitted **${results.length}** transaction${results.length === 1 ? "" : "s"} on \`${appConfig.chainId}\`${autoSignEnabled ? " via auto-sign" : ""}`,
     "",
     ...txLines,
-  ].join("\n");
+  ];
+
+  if (intent.costSummary) {
+    parts.push("", `**${intent.costSummary}**`);
+  }
+  if (intent.balanceLine) {
+    parts.push(`*${intent.balanceLine}*`);
+  }
+
+  return parts.join("\n");
 }
 
 function formatExecutionError(error) {
@@ -123,7 +142,7 @@ function formatBridgeExecutionMessage(intent) {
   ].join("\n");
 }
 
-export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
+export default function Chat({ onRequestInventoryRefresh, onTransactionLog, displayUsername }) {
   const { initiaAddress, requestTxSync, autoSign, openDeposit } =
     useInterwovenKit();
   const [messages, setMessages] = useState(initialMessages);
@@ -131,6 +150,7 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
   const [isThinking, setIsThinking] = useState(false);
   const endRef = useRef(null);
   const refreshTimeoutRef = useRef(null);
+  const sessionIdRef = useRef(generateSessionId());
 
   const autoSignEnabled = Boolean(
     autoSign?.isEnabledByChain?.[appConfig.chainId],
@@ -146,6 +166,32 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
     };
   }, []);
 
+  function handleClearHistory() {
+    void clearAgentHistory(sessionIdRef.current);
+    sessionIdRef.current = generateSessionId();
+    setMessages(initialMessages);
+  }
+
+  function handleSuggestionClick(suggestion) {
+    if (isThinking) return;
+    setDraft(suggestion);
+    // Auto-submit the suggestion
+    setMessages((current) => [...current, createMessage("user", suggestion)]);
+    setIsThinking(true);
+    handleAgentPrompt(suggestion)
+      .catch((error) => {
+        console.error("Agent execution failed", error);
+        setMessages((current) => [
+          ...current,
+          createMessage("assistant", formatExecutionError(error), "error"),
+        ]);
+      })
+      .finally(() => {
+        setIsThinking(false);
+        setDraft("");
+      });
+  }
+
   async function triggerInventoryRefresh() {
     await onRequestInventoryRefresh?.();
 
@@ -160,13 +206,32 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
       ? await fetchInventory(initiaAddress).catch(() => null)
       : null;
 
-    const intent = await askAgent(prompt, initiaAddress, currentInventory);
+    const intent = await askAgent(
+      prompt,
+      initiaAddress,
+      currentInventory,
+      sessionIdRef.current,
+    );
 
     if (intent.type === "help" || intent.type === "chat") {
       setMessages((current) => [
         ...current,
-        createMessage("assistant", intent.message, "info"),
+        createMessage("assistant", intent.message, "info", {
+          suggestions: intent.suggestions,
+        }),
       ]);
+      return;
+    }
+
+    if (intent.type === "username") {
+      const url = intent.username?.registrationUrl || USERNAME_REGISTRATION_URL;
+      setMessages((current) => [
+        ...current,
+        createMessage("assistant", intent.message, "action", {
+          suggestions: intent.suggestions,
+        }),
+      ]);
+      window.open(url, "_blank", "noopener,noreferrer");
       return;
     }
 
@@ -193,6 +258,7 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
           "assistant",
           [intent.message, "", formatInventoryMessage(inventory)].join("\n"),
           "info",
+          { suggestions: intent.suggestions },
         ),
       ]);
       return;
@@ -222,6 +288,7 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
           "assistant",
           formatBridgeExecutionMessage(intent),
           "action",
+          { suggestions: intent.suggestions },
         ),
       ]);
       return;
@@ -250,6 +317,7 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
         "assistant",
         formatExecutionMessage(intent, results, autoSignEnabled),
         "action",
+        { suggestions: intent.suggestions },
       ),
     ]);
   }
@@ -279,6 +347,13 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
     }
   }
 
+  // Find suggestions from the last assistant message
+  const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant");
+  const activeSuggestions =
+    !isThinking && lastAssistantMsg?.suggestions?.length > 0
+      ? lastAssistantMsg.suggestions
+      : [];
+
   return (
     <section className="panel chat-panel">
       <div className="panel-header">
@@ -286,14 +361,24 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
           <p className="eyebrow">AI Chat</p>
           <h2>Mission Console</h2>
         </div>
-        <span
-          className={`panel-chip ${autoSignEnabled ? "panel-chip--active" : ""}`}
-        >
+        <div className="panel-header__actions">
+          <button
+            type="button"
+            className="clear-chat-button"
+            onClick={handleClearHistory}
+            title="Clear conversation"
+          >
+            <RotateCcw size={14} />
+          </button>
           <span
-            className={`chip-dot ${autoSignEnabled ? "chip-dot--on" : ""}`}
-          />
-          {autoSignEnabled ? "Auto-sign ready" : "Manual approval"}
-        </span>
+            className={`panel-chip ${autoSignEnabled ? "panel-chip--active" : ""}`}
+          >
+            <span
+              className={`chip-dot ${autoSignEnabled ? "chip-dot--on" : ""}`}
+            />
+            {autoSignEnabled ? "Auto-sign ready" : "Manual approval"}
+          </span>
+        </div>
       </div>
 
       <div className="message-list">
@@ -315,7 +400,7 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
               <div className="message-bubble">
                 <div className="message-meta">
                   <span className="message-role">
-                    {isAssistant ? "Agent" : "You"}
+                    {isAssistant ? "Agent" : displayUsername || "You"}
                   </span>
                   <span className="message-time">
                     {formatTime(message.timestamp)}
@@ -357,11 +442,26 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog }) {
         <div ref={endRef} />
       </div>
 
+      {activeSuggestions.length > 0 && (
+        <div className="suggestion-bar">
+          {activeSuggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="suggestion-chip"
+              onClick={() => handleSuggestionClick(s)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
       <form className="composer" onSubmit={handleSubmit}>
         <input
           className="composer-input"
           type="text"
-          placeholder="Try: mint 5 shards, craft relic, check inventory..."
+          placeholder="Try: mint 5 shards, craft relic, or just chat..."
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           disabled={isThinking}

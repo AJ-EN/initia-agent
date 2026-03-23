@@ -1,4 +1,5 @@
 import { appConfig } from "./config.js";
+import { USERNAME_REGISTRATION_URL } from "./username.js";
 
 const NUMBER_WORDS = {
   one: 1,
@@ -25,6 +26,7 @@ const HELP_TEXT = [
   "- `craft relic`, `make relic`, `forge relic`",
   "- `upgrade relic`, `make legendary`, `forge legendary`",
   "- `check inventory`, `what do I have`, `my items`, `status`",
+  "- `register my username`, `set my name`, `call me X`",
 ].join("\n");
 
 const ACTION_DEFINITIONS = [
@@ -140,6 +142,44 @@ function buildInventoryQuery(walletAddress) {
   };
 }
 
+function buildUsernamePlan(desiredName) {
+  const nameMsg = desiredName
+    ? `You want to register **${desiredName}.init** as your Initia username.`
+    : "You can register a **.init** username for your wallet.";
+
+  return {
+    type: "username",
+    actions: [],
+    bridge: null,
+    username: { name: desiredName || null, registrationUrl: USERNAME_REGISTRATION_URL },
+    message: [
+      nameMsg,
+      "",
+      `Open the [Initia Usernames portal](${USERNAME_REGISTRATION_URL}) to claim your name.`,
+    ].join("\n"),
+  };
+}
+
+function isUsernameRequest(normalized) {
+  return (
+    /\bregister\s+(?:my\s+)?(?:username|name)\b/.test(normalized) ||
+    /\bset\s+(?:my\s+)?(?:username|name)\b/.test(normalized) ||
+    /\bcall\s+me\s+\w+/.test(normalized) ||
+    /\bclaim\s+(?:a\s+)?(?:username|\.?init\s+name)\b/.test(normalized) ||
+    /\b(?:get|want)\s+(?:a\s+)?\.?init\s+(?:username|name)\b/.test(normalized)
+  );
+}
+
+function extractDesiredName(normalized) {
+  const callMe = normalized.match(/\bcall\s+me\s+(\w+)/);
+  if (callMe) return callMe[1];
+
+  const setName = normalized.match(/\b(?:set|register)\s+(?:my\s+)?(?:username|name)\s+(?:to\s+)?(\w+)/);
+  if (setName) return setName[1];
+
+  return null;
+}
+
 function buildBridgePlan(amount) {
   return {
     type: "bridge",
@@ -178,6 +218,8 @@ export function formatActionName(functionName) {
   switch (functionName) {
     case "deposit_from_l1":
       return "deposit from L1";
+    case "register_username":
+      return "register username";
     case "mint_shard":
       return "mint shard";
     case "mint_gem":
@@ -193,12 +235,12 @@ export function formatActionName(functionName) {
 
 const BACKEND_URL = "http://localhost:3001";
 
-export async function askAgent(message, walletAddress, inventory) {
+export async function askAgent(message, walletAddress, inventory, sessionId) {
   try {
     const response = await fetch(`${BACKEND_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, walletAddress, inventory }),
+      body: JSON.stringify({ message, walletAddress, inventory, sessionId }),
     });
 
     if (!response.ok) {
@@ -212,10 +254,26 @@ export async function askAgent(message, walletAddress, inventory) {
       actions: data.actions || [],
       message: data.message || "Done.",
       bridge: data.bridge || null,
+      username: data.username || null,
+      suggestions: data.suggestions || [],
+      costSummary: data.costSummary || "",
+      balanceLine: data.balanceLine || "",
     };
   } catch (err) {
     console.warn("AI backend unreachable, falling back to local parsing:", err.message);
     return parseAgentMessage(message, walletAddress);
+  }
+}
+
+export async function clearAgentHistory(sessionId) {
+  try {
+    await fetch(`${BACKEND_URL}/api/chat/clear`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+  } catch {
+    // Ignore — clearing is best-effort
   }
 }
 
@@ -242,6 +300,10 @@ export function parseAgentMessage(message, walletAddress) {
     normalized.includes("inventory")
   ) {
     return buildInventoryQuery(walletAddress);
+  }
+
+  if (isUsernameRequest(normalized)) {
+    return buildUsernamePlan(extractDesiredName(normalized));
   }
 
   if (isBridgeRequest(normalized)) {

@@ -3,7 +3,6 @@ import { useInterwovenKit } from "@initia/interwovenkit-react";
 import {
   ArrowRight,
   Bot,
-  ChevronRight,
   Layers,
   LoaderCircle,
   Shield,
@@ -15,6 +14,7 @@ import {
 import Chat from "./Chat.jsx";
 import { appConfig, shortenAddress } from "./config.js";
 import Game from "./Game.jsx";
+import { resolveAddressToUsername } from "./username.js";
 
 async function fetchBalance(address) {
   try {
@@ -89,13 +89,14 @@ function WelcomeScreen({ onConnect }) {
 }
 
 function App() {
-  const { initiaAddress, openConnect, openWallet, autoSign } =
+  const { initiaAddress, username, openConnect, openWallet, autoSign } =
     useInterwovenKit();
   const [isAutoSignPending, setIsAutoSignPending] = useState(false);
   const [autoSignError, setAutoSignError] = useState("");
   const [toast, setToast] = useState("");
   const [balance, setBalance] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
+  const [resolvedUsername, setResolvedUsername] = useState(null);
   const inventoryRefreshHandlerRef = useRef(null);
   const toastTimerRef = useRef(null);
   const prevAutoSignRef = useRef(undefined);
@@ -105,13 +106,19 @@ function App() {
     autoSign?.isEnabledByChain?.[appConfig.chainId],
   );
 
+  const displayUsername = username || resolvedUsername;
+
   useEffect(() => {
     if (!initiaAddress) {
       setBalance(null);
+      setResolvedUsername(null);
       return;
     }
     fetchBalance(initiaAddress).then(setBalance);
-  }, [initiaAddress]);
+    if (!username) {
+      resolveAddressToUsername(initiaAddress).then(setResolvedUsername);
+    }
+  }, [initiaAddress, username]);
 
   useEffect(() => {
     if (autoSignLoading) return;
@@ -228,7 +235,14 @@ function App() {
         <div className="header-actions">
           <button onClick={openWallet} className="wallet-pill">
             <span className="wallet-pill__dot" />
-            <span>{shortenAddress(initiaAddress)}</span>
+            {displayUsername ? (
+              <>
+                <span className="wallet-pill__username">{displayUsername}</span>
+                <span className="wallet-pill__addr">{shortenAddress(initiaAddress)}</span>
+              </>
+            ) : (
+              <span>{shortenAddress(initiaAddress)}</span>
+            )}
             {balance !== null && (
               <span className="wallet-balance">
                 {balance} {appConfig.nativeSymbol}
@@ -281,12 +295,14 @@ function App() {
           <Chat
             onRequestInventoryRefresh={requestInventoryRefresh}
             onTransactionLog={handleTransactionLog}
+            displayUsername={displayUsername}
           />
         </div>
         <div className="workspace-grid__side">
           <Game
             onRefreshReady={handleRefreshRegistration}
             activityLog={activityLog}
+            displayUsername={displayUsername}
           />
         </div>
       </main>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
-import { RefreshCw, Wallet } from "lucide-react";
+import { ExternalLink, RefreshCw, UserRound, Wallet } from "lucide-react";
 
 import Bridge from "./Bridge.jsx";
 import { appConfig, shortenAddress } from "./config.js";
@@ -9,6 +9,7 @@ import {
   fetchInventory,
   inventoryStructTag,
 } from "./inventory.js";
+import { USERNAME_REGISTRATION_URL } from "./username.js";
 
 const inventoryCards = [
   { key: "shards", label: "Shards", emoji: "\u26a1", accentClass: "inventory-card--cyan" },
@@ -146,7 +147,7 @@ function ActivityLog({ log }) {
   );
 }
 
-export default function Game({ onRefreshReady, activityLog }) {
+export default function Game({ onRefreshReady, activityLog, displayUsername }) {
   const { initiaAddress, openConnect } = useInterwovenKit();
   const [inventory, setInventory] = useState(EMPTY_INVENTORY);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -264,10 +265,42 @@ export default function Game({ onRefreshReady, activityLog }) {
 
             <ActivityLog log={activityLog} />
 
+            <div className="username-section">
+              <div className="username-section__header">
+                <UserRound size={16} />
+                <h3 className="section-title">Initia Username</h3>
+              </div>
+              {displayUsername ? (
+                <div className="username-display">
+                  <span className="username-display__name">{displayUsername}</span>
+                  <span className="username-display__hint">Linked to your wallet</span>
+                </div>
+              ) : (
+                <div className="username-display username-display--empty">
+                  <span className="username-display__hint">No .init username registered</span>
+                  <a
+                    href={USERNAME_REGISTRATION_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="username-register-link"
+                  >
+                    Register Username
+                    <ExternalLink size={13} />
+                  </a>
+                </div>
+              )}
+            </div>
+
             <div className="detail-list">
               <div className="detail-row">
                 <span>Wallet</span>
-                <code>{shortenAddress(initiaAddress)}</code>
+                <code>
+                  {displayUsername ? (
+                    <span className="detail-username">{displayUsername}</span>
+                  ) : (
+                    shortenAddress(initiaAddress)
+                  )}
+                </code>
               </div>
               <div className="detail-row">
                 <span>Module</span>
