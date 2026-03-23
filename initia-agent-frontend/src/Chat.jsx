@@ -3,7 +3,7 @@ import { useInterwovenKit } from "@initia/interwovenkit-react";
 import ReactMarkdown from "react-markdown";
 import { Bot, RotateCcw, SendHorizontal, User } from "lucide-react";
 
-import { askAgent, clearAgentHistory, formatActionName } from "./agent.js";
+import { askAgent, clearAgentHistory, formatActionName, isRevenueRequest, normalizeMessage } from "./agent.js";
 import {
   BRIDGE_STATUS_REFRESH_DELAY_MS,
   formatRequestedInitAmount,
@@ -203,6 +203,36 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
   }
 
   async function handleAgentPrompt(prompt) {
+    // Handle revenue queries entirely on the client — the data lives in localStorage
+    if (isRevenueRequest(normalizeMessage(prompt))) {
+      const stats = getRevenueStats();
+      const lines = [
+        "Here are your sequencer revenue stats:",
+        "",
+        `| Metric | Value |`,
+        `|--------|-------|`,
+        `| Total Transactions | **${stats.totalTx}** |`,
+        `| Est. Revenue | **${stats.estimatedRevenue.toFixed(4)} INIT** |`,
+        `| Tx/min (active) | **${stats.txPerMinute.toFixed(1)}** |`,
+      ];
+      if (Object.keys(stats.breakdown).length > 0) {
+        lines.push("", "**Revenue by action:**");
+        for (const [action, count] of Object.entries(stats.breakdown)) {
+          lines.push(`- ${action}: **${count}** tx`);
+        }
+      }
+      if (stats.totalTx === 0) {
+        lines.push("", "*No transactions yet — execute some agent actions to start generating revenue!*");
+      }
+      setMessages((current) => [
+        ...current,
+        createMessage("assistant", lines.join("\n"), "info", {
+          suggestions: ["Mint 5 shards", "Check inventory"],
+        }),
+      ]);
+      return;
+    }
+
     const currentInventory = initiaAddress
       ? await fetchInventory(initiaAddress).catch(() => null)
       : null;

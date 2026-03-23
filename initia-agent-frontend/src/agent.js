@@ -74,7 +74,7 @@ const ACTION_DEFINITIONS = [
   },
 ];
 
-function normalizeMessage(message) {
+export function normalizeMessage(message) {
   return message.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
@@ -197,7 +197,7 @@ function buildBridgePlan(amount) {
   };
 }
 
-function isRevenueRequest(normalized) {
+export function isRevenueRequest(normalized) {
   return (
     /\brevenue\b/.test(normalized) ||
     /\btransaction\s+stats?\b/.test(normalized) ||
