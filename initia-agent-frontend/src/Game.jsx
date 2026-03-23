@@ -147,7 +147,13 @@ function ActivityLog({ log }) {
   );
 }
 
-export default function Game({ onRefreshReady, activityLog, displayUsername }) {
+export default function Game({
+  onRefreshReady,
+  activityLog,
+  displayUsername,
+  embedded = false,
+  showHeader = true,
+}) {
   const { initiaAddress, openConnect } = useInterwovenKit();
   const [inventory, setInventory] = useState(EMPTY_INVENTORY);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -204,24 +210,26 @@ export default function Game({ onRefreshReady, activityLog, displayUsername }) {
   }, [onRefreshReady]);
 
   return (
-    <section className="panel inventory-panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Onchain Inventory</p>
-          <h2>Agent Actions</h2>
+    <section className={embedded ? "inventory-panel inventory-panel--embedded" : "panel inventory-panel"}>
+      {showHeader && (
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Onchain Inventory</p>
+            <h2>Agent Actions</h2>
+          </div>
+          <button
+            type="button"
+            className="refresh-button"
+            onClick={() => void loadInventory()}
+            disabled={!initiaAddress || isRefreshing}
+            aria-label="Refresh inventory"
+          >
+            <RefreshCw size={16} className={isRefreshing ? "spin" : ""} />
+          </button>
         </div>
-        <button
-          type="button"
-          className="refresh-button"
-          onClick={() => void loadInventory()}
-          disabled={!initiaAddress || isRefreshing}
-          aria-label="Refresh inventory"
-        >
-          <RefreshCw size={16} className={isRefreshing ? "spin" : ""} />
-        </button>
-      </div>
+      )}
 
-      <div className="inventory-panel__body">
+      <div className={`inventory-panel__body ${embedded ? "inventory-panel__body--embedded" : ""}`}>
         {!initiaAddress ? (
           <div className="empty-state">
             <div className="empty-state__icon">

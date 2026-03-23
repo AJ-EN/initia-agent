@@ -135,6 +135,11 @@ BRIDGE / FUNDING:
 USERNAMES:
 - When the user asks to register a username, set their name, or says "call me X", use the register_username tool.
 
+REVENUE / STATS:
+- When the user asks about revenue, transaction stats, or "how much revenue", use the show_revenue tool.
+- Every appchain transaction generates sequencer revenue — this is a core Initia value proposition.
+- Frame revenue positively: "Every action you take generates revenue for the appchain!"
+
 IMPORTANT:
 - The user's current inventory is provided with each message. Always check it before acting.
 - If resources are insufficient, tell them exactly what they need and suggest minting.
@@ -239,6 +244,16 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: "show_revenue",
+    description:
+      "Show the user's sequencer revenue stats — total transactions, estimated revenue generated, and transaction rate. Use when the user asks about revenue, stats, or transaction history.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 /* ───────────────────────────────────────────────
@@ -340,7 +355,7 @@ function extractSuggestions(text) {
   return { cleanText, suggestions };
 }
 
-function buildDefaultReply({ bridge, actions, hasInventoryCheck, usernameReq }) {
+function buildDefaultReply({ bridge, actions, hasInventoryCheck, hasRevenueCheck, usernameReq }) {
   if (usernameReq) {
     return usernameReq.name
       ? `I'll open the Initia Usernames portal so you can register **${usernameReq.name}.init**.`
@@ -355,6 +370,10 @@ function buildDefaultReply({ bridge, actions, hasInventoryCheck, usernameReq }) 
 
   if (actions.length > 0) {
     return `I'll handle that on ${APPCHAIN_CHAIN_ID}.`;
+  }
+
+  if (hasRevenueCheck) {
+    return "Pulling up your revenue stats.";
   }
 
   if (hasInventoryCheck) {
@@ -405,13 +424,17 @@ app.post("/api/chat", async (req, res) => {
     const hasInventoryCheck = toolUses.some(
       (tu) => tu.name === "check_inventory",
     );
+    const hasRevenueCheck = toolUses.some(
+      (tu) => tu.name === "show_revenue",
+    );
     const bridge = extractBridgeRequest(toolUses);
     const usernameReq = extractUsernameRequest(toolUses);
     const actionToolUses = toolUses.filter(
       (tu) =>
         tu.name !== "check_inventory" &&
         tu.name !== "deposit_from_l1" &&
-        tu.name !== "register_username",
+        tu.name !== "register_username" &&
+        tu.name !== "show_revenue",
     );
     const actions = expandActions(actionToolUses);
 
@@ -422,11 +445,13 @@ app.post("/api/chat", async (req, res) => {
       type = "bridge";
     } else if (actions.length > 0) {
       type = "action";
+    } else if (hasRevenueCheck) {
+      type = "revenue";
     } else if (hasInventoryCheck) {
       type = "query";
     }
 
-    const fallbackReply = buildDefaultReply({ bridge, actions, hasInventoryCheck, usernameReq });
+    const fallbackReply = buildDefaultReply({ bridge, actions, hasInventoryCheck, hasRevenueCheck, usernameReq });
     const { cleanText, suggestions } = extractSuggestions(rawReply || fallbackReply);
 
     const costSummary = actions.length > 0 ? formatCostSummary(actions) : "";

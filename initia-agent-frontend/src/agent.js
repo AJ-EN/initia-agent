@@ -197,6 +197,16 @@ function buildBridgePlan(amount) {
   };
 }
 
+function isRevenueRequest(normalized) {
+  return (
+    /\brevenue\b/.test(normalized) ||
+    /\btransaction\s+stats?\b/.test(normalized) ||
+    /\bshow\s+(?:me\s+)?stats?\b/.test(normalized) ||
+    /\bhow\s+much\s+revenue\b/.test(normalized) ||
+    /\bsequencer\s+revenue\b/.test(normalized)
+  );
+}
+
 function isBridgeRequest(normalized) {
   const bridgeVerb =
     /\bdeposit\b/.test(normalized) ||
@@ -304,6 +314,10 @@ export function parseAgentMessage(message, walletAddress) {
 
   if (isUsernameRequest(normalized)) {
     return buildUsernamePlan(extractDesiredName(normalized));
+  }
+
+  if (isRevenueRequest(normalized)) {
+    return { type: "revenue", actions: [], bridge: null, message: "Here are your sequencer revenue stats." };
   }
 
   if (isBridgeRequest(normalized)) {

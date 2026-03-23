@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import {
+  Activity,
   ArrowRight,
   Bot,
+  Coins,
   Layers,
   LoaderCircle,
+  RefreshCw,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -14,7 +17,14 @@ import {
 import Chat from "./Chat.jsx";
 import { appConfig, shortenAddress } from "./config.js";
 import Game from "./Game.jsx";
+import Revenue from "./Revenue.jsx";
+import { recordTransaction, getRevenueStats, subscribeRevenue } from "./revenue.js";
 import { resolveAddressToUsername } from "./username.js";
+
+function formatRevenueMetric(value) {
+  if (value < 0.01) return value.toFixed(4);
+  return value.toFixed(2);
+}
 
 async function fetchBalance(address) {
   try {
@@ -96,6 +106,7 @@ function App() {
   const [toast, setToast] = useState("");
   const [balance, setBalance] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
+  const [activeConsoleTab, setActiveConsoleTab] = useState("actions");
   const [resolvedUsername, setResolvedUsername] = useState(null);
   const inventoryRefreshHandlerRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -190,8 +201,19 @@ function App() {
     return inventoryRefreshHandlerRef.current?.();
   }
 
+  const [revenueSummary, setRevenueSummary] = useState(getRevenueStats);
+
+  useEffect(() => {
+    return subscribeRevenue(setRevenueSummary);
+  }, []);
+
   const handleTransactionLog = useCallback((entry) => {
     setActivityLog((prev) => [...prev, entry]);
+    recordTransaction({
+      action: entry.action,
+      txHash: entry.txHash,
+      gasUsed: entry.gasUsed,
+    });
   }, []);
 
   if (!initiaAddress) {
@@ -287,6 +309,13 @@ function App() {
                 ? `Session active \u2022 fees in ${appConfig.nativeDenom}`
                 : "Enable auto-sign for hands-free transactions"}
           </p>
+
+          {revenueSummary.totalTx > 0 && (
+            <p className="header-revenue-stat">
+              <Zap size={13} />
+              {revenueSummary.totalTx} tx processed &middot; ~{revenueSummary.estimatedRevenue.toFixed(2)} INIT revenue
+            </p>
+          )}
         </div>
       </header>
 
@@ -299,11 +328,141 @@ function App() {
           />
         </div>
         <div className="workspace-grid__side">
-          <Game
-            onRefreshReady={handleRefreshRegistration}
-            activityLog={activityLog}
-            displayUsername={displayUsername}
-          />
+          <section className="panel workspace-console">
+            <div className="workspace-console__header">
+              <div className="workspace-console__copy">
+                <p className="eyebrow">Workspace Console</p>
+                <h2>
+                  {activeConsoleTab === "actions"
+                    ? "Agent Operations"
+                    : "Revenue Intelligence"}
+                </h2>
+                <p className="panel-copy">
+                  {activeConsoleTab === "actions"
+                    ? "Operate the appchain from one place: inspect balances, bridge funds, craft resources, and review the latest executions."
+                    : "Track sequencer health, fee capture, and action-level performance without leaving your current workflow."}
+                </p>
+              </div>
+
+              <div className="workspace-console__summary">
+                <article className="workspace-console__summary-card">
+                  <span className="workspace-console__summary-icon">
+                    <Sparkles size={15} />
+                  </span>
+                  <span className="workspace-console__summary-label">Wallet Balance</span>
+                  <strong>
+                    {balance !== null
+                      ? `${balance} ${appConfig.nativeSymbol}`
+                      : "--"}
+                  </strong>
+                  <span className="workspace-console__summary-meta">
+                    {displayUsername || shortenAddress(initiaAddress)}
+                  </span>
+                </article>
+
+                <article className="workspace-console__summary-card">
+                  <span className="workspace-console__summary-icon workspace-console__summary-icon--cyan">
+                    <Activity size={15} />
+                  </span>
+                  <span className="workspace-console__summary-label">Transactions</span>
+                  <strong>{revenueSummary.totalTx.toLocaleString()}</strong>
+                  <span className="workspace-console__summary-meta">
+                    {revenueSummary.totalTx > 0
+                      ? `${Object.keys(revenueSummary.breakdown || {}).length} action type${Object.keys(revenueSummary.breakdown || {}).length === 1 ? "" : "s"} tracked`
+                      : "No activity recorded yet"}
+                  </span>
+                </article>
+
+                <article className="workspace-console__summary-card">
+                  <span className="workspace-console__summary-icon workspace-console__summary-icon--gold">
+                    <Coins size={15} />
+                  </span>
+                  <span className="workspace-console__summary-label">Revenue Captured</span>
+                  <strong>{formatRevenueMetric(revenueSummary.estimatedRevenue)} INIT</strong>
+                  <span className="workspace-console__summary-meta">
+                    {isAutoSignEnabled ? "Auto-sign session live" : "Manual approvals enabled"}
+                  </span>
+                </article>
+              </div>
+            </div>
+
+            <div className="workspace-console__toolbar">
+              <div
+                className="workspace-console__tabs"
+                role="tablist"
+                aria-label="Workspace views"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  id="workspace-tab-actions"
+                  aria-selected={activeConsoleTab === "actions"}
+                  aria-controls="workspace-panel-actions"
+                  className={`workspace-console__tab ${activeConsoleTab === "actions" ? "workspace-console__tab--active" : ""}`}
+                  onClick={() => setActiveConsoleTab("actions")}
+                >
+                  <Layers size={15} />
+                  Agent Actions
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="workspace-tab-revenue"
+                  aria-selected={activeConsoleTab === "revenue"}
+                  aria-controls="workspace-panel-revenue"
+                  className={`workspace-console__tab ${activeConsoleTab === "revenue" ? "workspace-console__tab--active" : ""}`}
+                  onClick={() => setActiveConsoleTab("revenue")}
+                >
+                  <Zap size={15} />
+                  Sequencer Revenue
+                </button>
+              </div>
+
+              <div className="workspace-console__toolbar-side">
+                {activeConsoleTab === "actions" ? (
+                  <button
+                    type="button"
+                    className="workspace-console__refresh"
+                    onClick={() => void requestInventoryRefresh()}
+                  >
+                    <RefreshCw size={14} />
+                    Sync inventory
+                  </button>
+                ) : (
+                  <span className="workspace-console__live-pill">
+                    <span className="workspace-console__live-dot" />
+                    Auto updates on every completed tx
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="workspace-console__body">
+              <div
+                id="workspace-panel-actions"
+                role="tabpanel"
+                aria-labelledby="workspace-tab-actions"
+                className={`workspace-console__view ${activeConsoleTab === "actions" ? "" : "workspace-console__view--hidden"}`}
+              >
+                <Game
+                  embedded
+                  showHeader={false}
+                  onRefreshReady={handleRefreshRegistration}
+                  activityLog={activityLog}
+                  displayUsername={displayUsername}
+                />
+              </div>
+
+              <div
+                id="workspace-panel-revenue"
+                role="tabpanel"
+                aria-labelledby="workspace-tab-revenue"
+                className={`workspace-console__view ${activeConsoleTab === "revenue" ? "" : "workspace-console__view--hidden"}`}
+              >
+                <Revenue embedded showHeader={false} />
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 

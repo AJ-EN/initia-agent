@@ -12,6 +12,7 @@ import {
 import { appConfig } from "./config.js";
 import { executeAgentActions } from "./executor.js";
 import { fetchInventory } from "./inventory.js";
+import { getRevenueStats } from "./revenue.js";
 import { USERNAME_REGISTRATION_URL } from "./username.js";
 
 function createMessage(role, content, variant = "info", extra = {}) {
@@ -260,6 +261,32 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
           "info",
           { suggestions: intent.suggestions },
         ),
+      ]);
+      return;
+    }
+
+    if (intent.type === "revenue") {
+      const stats = getRevenueStats();
+      const lines = [
+        intent.message,
+        "",
+        `| Metric | Value |`,
+        `|--------|-------|`,
+        `| Total Transactions | **${stats.totalTx}** |`,
+        `| Est. Revenue | **${stats.estimatedRevenue.toFixed(4)} INIT** |`,
+        `| Tx/min (active) | **${stats.txPerMinute.toFixed(1)}** |`,
+      ];
+      if (Object.keys(stats.breakdown).length > 0) {
+        lines.push("", "**By action:**");
+        for (const [action, count] of Object.entries(stats.breakdown)) {
+          lines.push(`- ${action}: ${count}`);
+        }
+      }
+      setMessages((current) => [
+        ...current,
+        createMessage("assistant", lines.join("\n"), "info", {
+          suggestions: intent.suggestions || ["Mint 5 shards", "Check inventory"],
+        }),
       ]);
       return;
     }
