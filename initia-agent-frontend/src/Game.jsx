@@ -12,10 +12,10 @@ import {
 import { USERNAME_REGISTRATION_URL } from "./username.js";
 
 const inventoryCards = [
-  { key: "shards", label: "Shards", emoji: "\u26a1", accentClass: "inventory-card--cyan" },
-  { key: "gems", label: "Gems", emoji: "\ud83d\udc8e", accentClass: "inventory-card--violet" },
-  { key: "relics", label: "Relics", emoji: "\ud83d\udd2e", accentClass: "inventory-card--gold" },
-  { key: "legendaryRelics", label: "Legendary", emoji: "\ud83d\udc51", accentClass: "inventory-card--rose" },
+  { key: "shards", label: "Shards", emoji: "\u26a1" },
+  { key: "gems", label: "Gems", emoji: "\ud83d\udc8e" },
+  { key: "relics", label: "Relics", emoji: "\ud83d\udd2e" },
+  { key: "legendaryRelics", label: "Legendary", emoji: "\ud83d\udc51" },
 ];
 
 const craftingRecipes = [
@@ -23,14 +23,14 @@ const craftingRecipes = [
     label: "Craft Relic",
     emoji: "\ud83d\udd2e",
     requires: [
-      { key: "shards", need: 2, label: "Shards" },
-      { key: "gems", need: 1, label: "Gems" },
+      { key: "shards", need: 2, emoji: "\u26a1" },
+      { key: "gems", need: 1, emoji: "\ud83d\udc8e" },
     ],
   },
   {
     label: "Upgrade to Legendary",
     emoji: "\ud83d\udc51",
-    requires: [{ key: "relics", need: 3, label: "Relics" }],
+    requires: [{ key: "relics", need: 3, emoji: "\ud83d\udd2e" }],
   },
 ];
 
@@ -46,7 +46,7 @@ function AnimatedCounter({ value }) {
 
     if (from === to) return;
 
-    const duration = 600;
+    const duration = 240;
     const start = performance.now();
 
     function tick(now) {
@@ -66,45 +66,57 @@ function AnimatedCounter({ value }) {
   return <>{display.toLocaleString()}</>;
 }
 
+function PanelHeader({ eyebrow, title, subtitle, action = null }) {
+  return (
+    <div className="panel-title-row">
+      <div className="panel-title-copy">
+        <p className="section-kicker">{eyebrow}</p>
+        <h2 className="panel-title">{title}</h2>
+        {subtitle ? <p className="panel-subtitle">{subtitle}</p> : null}
+      </div>
+      {action ? <div className="panel-title-action">{action}</div> : null}
+    </div>
+  );
+}
+
 function CraftingProgress({ inventory }) {
   return (
-    <div className="crafting-section">
-      <h3 className="section-title">Crafting Progress</h3>
+    <div className="craft-list">
       {craftingRecipes.map((recipe) => {
-        const canCraft = recipe.requires.every(
-          (req) => (inventory[req.key] || 0) >= req.need,
-        );
+        const progressValues = recipe.requires.map((requirement) => {
+          const have = inventory[requirement.key] || 0;
+          return Math.min(have / requirement.need, 1);
+        });
+        const percent = Math.min(...progressValues) * 100;
+        const canCraft = progressValues.every((value) => value >= 1);
+        const inlineRecipe = recipe.requires
+          .map((requirement) => {
+            const have = Math.min(inventory[requirement.key] || 0, requirement.need);
+            return `${have}/${requirement.need} ${requirement.emoji}`;
+          })
+          .join(" + ");
+
         return (
-          <div
-            key={recipe.label}
-            className={`craft-card ${canCraft ? "craft-card--ready" : ""}`}
-          >
-            <div className="craft-card__header">
-              <span className="craft-card__emoji">{recipe.emoji}</span>
-              <span className="craft-card__label">{recipe.label}</span>
-              {canCraft && <span className="craft-card__badge">Ready!</span>}
+          <div key={recipe.label} className="craft-row">
+            <div className="craft-row__header">
+              <div className="craft-row__copy">
+                <span className="craft-row__title">
+                  {recipe.emoji} {recipe.label}
+                </span>
+                <span className="craft-row__recipe">{inlineRecipe}</span>
+              </div>
+
+              <span className="craft-row__status">
+                {canCraft ? <span className="status-dot" aria-hidden="true" /> : null}
+                {canCraft ? "Ready" : "Gathering"}
+              </span>
             </div>
-            <div className="craft-card__bars">
-              {recipe.requires.map((req) => {
-                const have = inventory[req.key] || 0;
-                const pct = Math.min((have / req.need) * 100, 100);
-                return (
-                  <div key={req.key} className="craft-bar">
-                    <div className="craft-bar__meta">
-                      <span>{req.label}</span>
-                      <span>
-                        {have}/{req.need}
-                      </span>
-                    </div>
-                    <div className="craft-bar__track">
-                      <div
-                        className={`craft-bar__fill ${pct >= 100 ? "craft-bar__fill--full" : ""}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+
+            <div className="craft-progress" aria-hidden="true">
+              <span
+                className={`craft-progress__fill ${canCraft ? "craft-progress__fill--ready" : ""}`}
+                style={{ width: `${percent}%` }}
+              />
             </div>
           </div>
         );
@@ -119,21 +131,21 @@ function shortenHash(hash) {
 }
 
 function ActivityLog({ log }) {
-  if (!log || log.length === 0) return null;
+  if (!log || log.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="activity-section">
-      <h3 className="section-title">Recent Transactions</h3>
+    <div className="activity-block">
+      <p className="section-kicker">Recent Transactions</p>
       <div className="activity-list">
         {log
-          .slice(-5)
+          .slice(-4)
           .reverse()
-          .map((entry, i) => (
-            <div key={`${entry.txHash}-${i}`} className="activity-item">
+          .map((entry, index) => (
+            <div key={`${entry.txHash}-${index}`} className="activity-item">
               <span className="activity-action">{entry.action}</span>
-              <code className="activity-hash">
-                {shortenHash(entry.txHash)}
-              </code>
+              <code className="activity-hash">{shortenHash(entry.txHash)}</code>
               <span className="activity-time">
                 {entry.timestamp.toLocaleTimeString([], {
                   hour: "2-digit",
@@ -147,12 +159,156 @@ function ActivityLog({ log }) {
   );
 }
 
+function InventoryView({
+  inventory,
+  isRefreshing,
+  onRefresh,
+  displayUsername,
+  initiaAddress,
+  activityLog,
+  lastUpdated,
+}) {
+  return (
+    <div className="inspector-panel">
+      <PanelHeader
+        eyebrow="Inventory"
+        title="Live Inventory"
+        subtitle="A compact onchain snapshot for your current wallet."
+        action={(
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            aria-label="Refresh inventory"
+            title="Refresh inventory"
+          >
+            <RefreshCw size={14} className={isRefreshing ? "spin" : ""} />
+          </button>
+        )}
+      />
+
+      <div className="inventory-grid">
+        {inventoryCards.map(({ key, label, emoji }) => (
+          <article key={key} className="inventory-card">
+            <span className="inventory-card__emoji">{emoji}</span>
+            <span className="inventory-card__label">{label}</span>
+            <strong className="inventory-card__value">
+              <AnimatedCounter value={inventory[key]} />
+            </strong>
+          </article>
+        ))}
+      </div>
+
+      <div className="account-strip">
+        <div className="account-strip__icon">
+          <UserRound size={16} />
+        </div>
+        <div className="account-strip__content">
+          <span className="account-strip__label">Initia Username</span>
+          {displayUsername ? (
+            <strong className="account-strip__value">{displayUsername}</strong>
+          ) : (
+            <span className="account-strip__value account-strip__value--muted">
+              No .init username registered
+            </span>
+          )}
+        </div>
+
+        {!displayUsername ? (
+          <a
+            href={USERNAME_REGISTRATION_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="account-strip__link"
+          >
+            Register
+            <ExternalLink size={13} />
+          </a>
+        ) : null}
+      </div>
+
+      <ActivityLog log={activityLog} />
+
+      <div className="metadata-list">
+        <div className="metadata-item">
+          <span className="metadata-item__label">Wallet</span>
+          <code>{displayUsername || shortenAddress(initiaAddress)}</code>
+        </div>
+        <div className="metadata-item">
+          <span className="metadata-item__label">Module</span>
+          <code>{shortenAddress(appConfig.moduleAddress)}</code>
+        </div>
+        <div className="metadata-item">
+          <span className="metadata-item__label">Resource</span>
+          <code>{appConfig.moduleName}::Inventory</code>
+        </div>
+        <div className="metadata-item">
+          <span className="metadata-item__label">Struct Tag</span>
+          <code>{inventoryStructTag}</code>
+        </div>
+        <div className="metadata-item">
+          <span className="metadata-item__label">Last Sync</span>
+          <code>
+            {lastUpdated
+              ? lastUpdated.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "--"}
+          </code>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CraftingView({ inventory }) {
+  return (
+    <div className="inspector-panel">
+      <PanelHeader
+        eyebrow="Crafting"
+        title="Progress"
+        subtitle="Everything you need to know before crafting the next upgrade."
+      />
+
+      <div className="resource-strip">
+        {inventoryCards.map(({ key, label, emoji }) => (
+          <div key={key} className="resource-pill">
+            <span>{emoji}</span>
+            <span>{label}</span>
+            <strong>{inventory[key].toLocaleString()}</strong>
+          </div>
+        ))}
+      </div>
+
+      <CraftingProgress inventory={inventory} />
+    </div>
+  );
+}
+
+function BridgeView({ initiaAddress, refreshNonce }) {
+  return (
+    <div className="inspector-panel">
+      <PanelHeader
+        eyebrow="Bridge"
+        title="Initia Bridge"
+        subtitle="Move liquidity between L1 and your appchain wallet without leaving the app."
+      />
+
+      <Bridge
+        initiaAddress={initiaAddress}
+        refreshNonce={refreshNonce}
+      />
+    </div>
+  );
+}
+
 export default function Game({
+  view = "inventory",
   onRefreshReady,
   activityLog,
   displayUsername,
-  embedded = false,
-  showHeader = true,
 }) {
   const { initiaAddress, openConnect } = useInterwovenKit();
   const [inventory, setInventory] = useState(EMPTY_INVENTORY);
@@ -209,131 +365,55 @@ export default function Game({
     };
   }, [onRefreshReady]);
 
-  return (
-    <section className={embedded ? "inventory-panel inventory-panel--embedded" : "panel inventory-panel"}>
-      {showHeader && (
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Onchain Inventory</p>
-            <h2>Agent Actions</h2>
+  if (!initiaAddress) {
+    return (
+      <div className="inspector-panel inspector-panel--empty">
+        <div className="empty-state">
+          <div className="empty-state__icon">
+            <Wallet size={18} />
           </div>
-          <button
-            type="button"
-            className="refresh-button"
-            onClick={() => void loadInventory()}
-            disabled={!initiaAddress || isRefreshing}
-            aria-label="Refresh inventory"
-          >
-            <RefreshCw size={16} className={isRefreshing ? "spin" : ""} />
+          <div className="empty-state__copy">
+            <h2 className="empty-state__title">Connect a wallet to inspect inventory</h2>
+            <p className="empty-state__text">
+              Inventory lives onchain under your Initia address.
+            </p>
+          </div>
+          <button type="button" className="inline-button" onClick={openConnect}>
+            Connect Wallet
           </button>
         </div>
-      )}
-
-      <div className={`inventory-panel__body ${embedded ? "inventory-panel__body--embedded" : ""}`}>
-        {!initiaAddress ? (
-          <div className="empty-state">
-            <div className="empty-state__icon">
-              <Wallet size={18} />
-            </div>
-            <div>
-              <h3>Connect a wallet to inspect inventory</h3>
-              <p>
-                Your inventory is stored under your account address, so the panel
-                needs an active Initia wallet before it can query state.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="inline-button"
-              onClick={openConnect}
-            >
-              Connect Wallet
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="inventory-grid">
-              {inventoryCards.map(({ key, label, emoji, accentClass }) => (
-                <article key={key} className={`inventory-card ${accentClass}`}>
-                  <span className="inventory-card__emoji">{emoji}</span>
-                  <span className="inventory-card__label">{label}</span>
-                  <strong className="inventory-card__value">
-                    <AnimatedCounter value={inventory[key]} />
-                  </strong>
-                </article>
-              ))}
-            </div>
-
-            <Bridge
-              initiaAddress={initiaAddress}
-              refreshNonce={lastUpdated?.getTime() ?? 0}
-            />
-
-            <CraftingProgress inventory={inventory} />
-
-            <ActivityLog log={activityLog} />
-
-            <div className="username-section">
-              <div className="username-section__header">
-                <UserRound size={16} />
-                <h3 className="section-title">Initia Username</h3>
-              </div>
-              {displayUsername ? (
-                <div className="username-display">
-                  <span className="username-display__name">{displayUsername}</span>
-                  <span className="username-display__hint">Linked to your wallet</span>
-                </div>
-              ) : (
-                <div className="username-display username-display--empty">
-                  <span className="username-display__hint">No .init username registered</span>
-                  <a
-                    href={USERNAME_REGISTRATION_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="username-register-link"
-                  >
-                    Register Username
-                    <ExternalLink size={13} />
-                  </a>
-                </div>
-              )}
-            </div>
-
-            <div className="detail-list">
-              <div className="detail-row">
-                <span>Wallet</span>
-                <code>
-                  {displayUsername ? (
-                    <span className="detail-username">{displayUsername}</span>
-                  ) : (
-                    shortenAddress(initiaAddress)
-                  )}
-                </code>
-              </div>
-              <div className="detail-row">
-                <span>Module</span>
-                <code>{shortenAddress(appConfig.moduleAddress)}</code>
-              </div>
-              <div className="detail-row">
-                <span>Resource</span>
-                <code>{appConfig.moduleName}::Inventory</code>
-              </div>
-              <div className="detail-row">
-                <span>Struct Tag</span>
-                <code className="detail-code">{inventoryStructTag}</code>
-              </div>
-              <div className="detail-row">
-                <span>Last Sync</span>
-                <code>
-                  {lastUpdated ? lastUpdated.toLocaleTimeString() : "--"}
-                </code>
-              </div>
-            </div>
-          </>
-        )}
-
-        {error ? <p className="error-text">{error}</p> : null}
       </div>
-    </section>
+    );
+  }
+
+  let content = null;
+  if (view === "inventory") {
+    content = (
+      <InventoryView
+        inventory={inventory}
+        isRefreshing={isRefreshing}
+        onRefresh={() => void loadInventory()}
+        displayUsername={displayUsername}
+        initiaAddress={initiaAddress}
+        activityLog={activityLog}
+        lastUpdated={lastUpdated}
+      />
+    );
+  } else if (view === "crafting") {
+    content = <CraftingView inventory={inventory} />;
+  } else if (view === "bridge") {
+    content = (
+      <BridgeView
+        initiaAddress={initiaAddress}
+        refreshNonce={lastUpdated?.getTime() ?? 0}
+      />
+    );
+  }
+
+  return (
+    <>
+      {content}
+      {error ? <p className="inline-feedback inline-feedback--error">{error}</p> : null}
+    </>
   );
 }

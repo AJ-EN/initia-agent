@@ -1,16 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import {
-  Activity,
-  ArrowRight,
+  ArrowLeftRight,
+  BarChart3,
   Bot,
-  Coins,
+  Hammer,
   Layers,
   LoaderCircle,
-  RefreshCw,
-  Shield,
-  ShieldCheck,
-  Sparkles,
+  Package,
+  X,
   Zap,
 } from "lucide-react";
 
@@ -18,7 +16,7 @@ import Chat from "./Chat.jsx";
 import { appConfig, shortenAddress } from "./config.js";
 import Game from "./Game.jsx";
 import Revenue from "./Revenue.jsx";
-import { recordTransaction, getRevenueStats, subscribeRevenue } from "./revenue.js";
+import { getRevenueStats, recordTransaction, subscribeRevenue } from "./revenue.js";
 import { resolveAddressToUsername } from "./username.js";
 
 function formatRevenueMetric(value) {
@@ -32,9 +30,11 @@ async function fetchBalance(address) {
       `${appConfig.restUrl}/cosmos/bank/v1beta1/balances/${address}`,
     );
     if (!res.ok) return null;
+
     const data = await res.json();
     const coin = data.balances?.find((b) => b.denom === appConfig.nativeDenom);
     if (!coin) return "0";
+
     const raw = Number(coin.amount);
     return (raw / Math.pow(10, appConfig.nativeDecimals)).toLocaleString(
       undefined,
@@ -47,54 +47,42 @@ async function fetchBalance(address) {
 
 function WelcomeScreen({ onConnect }) {
   return (
-    <div className="welcome-screen">
-      <div className="welcome-card">
-        <div className="welcome-glow" />
-        <span className="welcome-badge">
-          <Sparkles size={14} />
-          Powered by Initia
-        </span>
-        <h2>Welcome to InitiaAgent</h2>
-        <p>
-          An AI-powered control room for managing onchain inventory on the
-          Initia blockchain. Chat with the agent to mint, craft, and upgrade
-          resources &mdash; all executed as Move transactions.
-        </p>
-        <div className="welcome-features">
-          <div className="welcome-feature">
-            <div className="welcome-feature__icon">
-              <Bot size={18} />
-            </div>
-            <div>
-              <strong>AI Chat Interface</strong>
-              <span>Natural language commands for onchain actions</span>
-            </div>
-          </div>
-          <div className="welcome-feature">
-            <div className="welcome-feature__icon">
-              <Layers size={18} />
-            </div>
-            <div>
-              <strong>Live Inventory</strong>
-              <span>Real-time resource tracking from chain state</span>
-            </div>
-          </div>
-          <div className="welcome-feature">
-            <div className="welcome-feature__icon">
-              <Zap size={18} />
-            </div>
-            <div>
-              <strong>Auto-Sign Sessions</strong>
-              <span>One-click approval for hands-free transactions</span>
-            </div>
+    <section className="welcome-screen">
+      <p className="section-kicker">Production-ready onchain ops</p>
+      <h1 className="welcome-title">Your AI-powered blockchain companion</h1>
+      <p className="welcome-subtitle">
+        Chat, transact, and track your appchain inventory from one calm control
+        surface.
+      </p>
+
+      <div className="welcome-features" aria-label="Core product features">
+        <div className="welcome-feature">
+          <div className="welcome-feature__icon"><Bot size={18} /></div>
+          <div className="welcome-feature__copy">
+            <strong>AI Chat Interface</strong>
+            <span>Natural language commands for onchain actions</span>
           </div>
         </div>
-        <button onClick={onConnect} className="welcome-connect">
-          Connect Wallet to Start
-          <ArrowRight size={16} />
-        </button>
+        <div className="welcome-feature">
+          <div className="welcome-feature__icon"><Zap size={18} /></div>
+          <div className="welcome-feature__copy">
+            <strong>Auto-Sign Sessions</strong>
+            <span>One-click approval for hands-free transactions</span>
+          </div>
+        </div>
+        <div className="welcome-feature">
+          <div className="welcome-feature__icon"><Layers size={18} /></div>
+          <div className="welcome-feature__copy">
+            <strong>Live Inventory</strong>
+            <span>Real-time resource tracking from chain state</span>
+          </div>
+        </div>
       </div>
-    </div>
+
+      <button type="button" className="welcome-connect" onClick={onConnect}>
+        Connect Wallet
+      </button>
+    </section>
   );
 }
 
@@ -106,8 +94,9 @@ function App() {
   const [toast, setToast] = useState("");
   const [balance, setBalance] = useState(null);
   const [activityLog, setActivityLog] = useState([]);
-  const [activeConsoleTab, setActiveConsoleTab] = useState("actions");
   const [resolvedUsername, setResolvedUsername] = useState(null);
+  const [revenueSummary, setRevenueSummary] = useState(getRevenueStats);
+  const [activeInspectorPanel, setActiveInspectorPanel] = useState(null);
   const inventoryRefreshHandlerRef = useRef(null);
   const toastTimerRef = useRef(null);
   const prevAutoSignRef = useRef(undefined);
@@ -116,15 +105,48 @@ function App() {
   const isAutoSignEnabled = Boolean(
     autoSign?.isEnabledByChain?.[appConfig.chainId],
   );
-
   const displayUsername = username || resolvedUsername;
+
+  const inspectorPanels = useMemo(
+    () => [
+      {
+        id: "inventory",
+        label: "Inventory",
+        icon: Package,
+      },
+      {
+        id: "crafting",
+        label: "Crafting",
+        icon: Hammer,
+      },
+      {
+        id: "bridge",
+        label: "Bridge",
+        icon: ArrowLeftRight,
+      },
+      {
+        id: "revenue",
+        label: "Revenue",
+        icon: BarChart3,
+      },
+    ],
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!initiaAddress) {
       setBalance(null);
       setResolvedUsername(null);
+      setActiveInspectorPanel(null);
       return;
     }
+
     fetchBalance(initiaAddress).then(setBalance);
     if (!username) {
       resolveAddressToUsername(initiaAddress).then(setResolvedUsername);
@@ -137,19 +159,31 @@ function App() {
     const prev = prevAutoSignRef.current;
     prevAutoSignRef.current = isAutoSignEnabled;
 
-    if (prev === undefined) return;
-    if (prev === isAutoSignEnabled) return;
+    if (prev === undefined || prev === isAutoSignEnabled) {
+      return;
+    }
 
     if (isAutoSignEnabled) {
-      showToast(
-        "Session active \u2014 transactions will execute without wallet popups.",
-      );
+      showToast("Session active. Transactions will execute without wallet popups.");
     } else {
-      showToast(
-        "Auto-sign disabled \u2014 wallet approval required for each transaction.",
-      );
+      showToast("Auto-sign disabled. Wallet approval is required for each transaction.");
     }
-  }, [isAutoSignEnabled, autoSignLoading]);
+  }, [autoSignLoading, isAutoSignEnabled]);
+
+  useEffect(() => subscribeRevenue(setRevenueSummary), []);
+
+  useEffect(() => {
+    if (!activeInspectorPanel) return undefined;
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setActiveInspectorPanel(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [activeInspectorPanel]);
 
   function showToast(message) {
     window.clearTimeout(toastTimerRef.current);
@@ -201,12 +235,6 @@ function App() {
     return inventoryRefreshHandlerRef.current?.();
   }
 
-  const [revenueSummary, setRevenueSummary] = useState(getRevenueStats);
-
-  useEffect(() => {
-    return subscribeRevenue(setRevenueSummary);
-  }, []);
-
   const handleTransactionLog = useCallback((entry) => {
     setActivityLog((prev) => [...prev, entry]);
     recordTransaction({
@@ -216,262 +244,172 @@ function App() {
     });
   }, []);
 
-  if (!initiaAddress) {
-    return (
-      <div className="app-page app-page--welcome">
-        <header className="app-header app-header--centered">
-          <div className="hero-copy hero-copy--centered">
-            <span className="hero-kicker">
-              <Sparkles size={14} />
-              Local Move Appchain
-            </span>
-            <h1>InitiaAgent</h1>
-          </div>
-        </header>
-        <WelcomeScreen onConnect={openConnect} />
-        {toast && (
-          <div className="toast" role="status">
-            <ShieldCheck size={16} />
-            {toast}
-          </div>
-        )}
-      </div>
+  const walletLabel = displayUsername || shortenAddress(initiaAddress || "");
+  const walletMeta =
+    balance !== null
+      ? `${balance} ${appConfig.nativeSymbol}`
+      : shortenAddress(initiaAddress || "");
+
+  function toggleInspectorPanel(panelId) {
+    setActiveInspectorPanel((current) =>
+      current === panelId ? null : panelId,
     );
   }
 
+  function renderInspectorContent() {
+    if (activeInspectorPanel === "revenue") {
+      return <Revenue />;
+    }
+
+    if (
+      activeInspectorPanel === "inventory"
+      || activeInspectorPanel === "crafting"
+      || activeInspectorPanel === "bridge"
+    ) {
+      return (
+        <Game
+          view={activeInspectorPanel}
+          onRefreshReady={handleRefreshRegistration}
+          activityLog={activityLog}
+          displayUsername={displayUsername}
+        />
+      );
+    }
+
+    return null;
+  }
+
   return (
-    <div className="app-page app-page--workspace">
-      <header className="app-header">
-        <div className="hero-copy">
-          <span className="hero-kicker">
-            <Sparkles size={14} />
-            Local Move Appchain
-          </span>
-          <h1>InitiaAgent</h1>
-          <p>
-            AI-powered control room for onchain inventory on{" "}
-            <code>{appConfig.chainId}</code>
-          </p>
-        </div>
+    <div className={`app-shell ${!initiaAddress ? "app-shell--welcome" : ""}`}>
+      <header className="topbar">
+        <div className="topbar__inner">
+          <div className="brand-lockup">
+            <span className="brand-title">InitiaAgent</span>
+            <span className="brand-badge">on {appConfig.chainId}</span>
+          </div>
 
-        <div className="header-actions">
-          <button onClick={openWallet} className="wallet-pill">
-            <span className="wallet-pill__dot" />
-            {displayUsername ? (
-              <>
-                <span className="wallet-pill__username">{displayUsername}</span>
-                <span className="wallet-pill__addr">{shortenAddress(initiaAddress)}</span>
-              </>
-            ) : (
-              <span>{shortenAddress(initiaAddress)}</span>
-            )}
-            {balance !== null && (
-              <span className="wallet-balance">
-                {balance} {appConfig.nativeSymbol}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            className={`auto-sign-pill ${isAutoSignEnabled ? "auto-sign-pill--active" : ""}`}
-            onClick={handleAutoSignToggle}
-            disabled={!initiaAddress || isAutoSignPending || autoSignLoading}
-          >
-            <span
-              className={`pill-track ${isAutoSignEnabled ? "pill-track--on" : ""}`}
-            >
-              <span className="pill-knob">
+          {initiaAddress ? (
+            <div className="topbar-actions">
+              <button
+                type="button"
+                className={`autosign-toggle ${isAutoSignEnabled ? "autosign-toggle--active" : ""}`}
+                onClick={handleAutoSignToggle}
+                disabled={!initiaAddress || isAutoSignPending || autoSignLoading}
+              >
                 {isAutoSignPending || autoSignLoading ? (
-                  <LoaderCircle size={12} className="spin" />
+                  <>
+                    <LoaderCircle size={14} className="spin" />
+                    Checking...
+                  </>
                 ) : isAutoSignEnabled ? (
-                  <ShieldCheck size={12} />
+                  "Auto-sign On"
                 ) : (
-                  <Shield size={12} />
+                  "Auto-sign Off"
                 )}
-              </span>
-            </span>
-            <span className="pill-label">
-              {isAutoSignPending || autoSignLoading
-                ? "Checking\u2026"
-                : isAutoSignEnabled
-                  ? "Auto-sign On"
-                  : "Auto-sign Off"}
-            </span>
-          </button>
+              </button>
 
-          <p
-            className={`header-note ${autoSignError ? "header-note--error" : ""}`}
-          >
-            {autoSignError
-              ? autoSignError
-              : isAutoSignEnabled
-                ? `Session active \u2022 fees in ${appConfig.nativeDenom}`
-                : "Enable auto-sign for hands-free transactions"}
-          </p>
-
-          {revenueSummary.totalTx > 0 && (
-            <p className="header-revenue-stat">
-              <Zap size={13} />
-              {revenueSummary.totalTx} tx processed &middot; ~{revenueSummary.estimatedRevenue.toFixed(2)} INIT revenue
-            </p>
-          )}
+              <button type="button" className="wallet-button" onClick={openWallet}>
+                <span className="wallet-button__identity">{walletLabel}</span>
+                <span className="wallet-button__meta">{walletMeta}</span>
+              </button>
+            </div>
+          ) : null}
         </div>
       </header>
 
-      <main className="workspace-grid">
-        <div className="workspace-grid__main">
-          <Chat
-            onRequestInventoryRefresh={requestInventoryRefresh}
-            onTransactionLog={handleTransactionLog}
-            displayUsername={displayUsername}
-          />
-        </div>
-        <div className="workspace-grid__side">
-          <section className="panel workspace-console">
-            <div className="workspace-console__header">
-              <div className="workspace-console__copy">
-                <p className="eyebrow">Workspace Console</p>
-                <h2>
-                  {activeConsoleTab === "actions"
-                    ? "Agent Operations"
-                    : "Revenue Intelligence"}
-                </h2>
-                <p className="panel-copy">
-                  {activeConsoleTab === "actions"
-                    ? "Operate the appchain from one place: inspect balances, bridge funds, craft resources, and review the latest executions."
-                    : "Track sequencer health, fee capture, and action-level performance without leaving your current workflow."}
-                </p>
-              </div>
-
-              <div className="workspace-console__summary">
-                <article className="workspace-console__summary-card">
-                  <span className="workspace-console__summary-icon">
-                    <Sparkles size={15} />
-                  </span>
-                  <span className="workspace-console__summary-label">Wallet Balance</span>
-                  <strong>
-                    {balance !== null
-                      ? `${balance} ${appConfig.nativeSymbol}`
-                      : "--"}
-                  </strong>
-                  <span className="workspace-console__summary-meta">
-                    {displayUsername || shortenAddress(initiaAddress)}
-                  </span>
-                </article>
-
-                <article className="workspace-console__summary-card">
-                  <span className="workspace-console__summary-icon workspace-console__summary-icon--cyan">
-                    <Activity size={15} />
-                  </span>
-                  <span className="workspace-console__summary-label">Transactions</span>
-                  <strong>{revenueSummary.totalTx.toLocaleString()}</strong>
-                  <span className="workspace-console__summary-meta">
-                    {revenueSummary.totalTx > 0
-                      ? `${Object.keys(revenueSummary.breakdown || {}).length} action type${Object.keys(revenueSummary.breakdown || {}).length === 1 ? "" : "s"} tracked`
-                      : "No activity recorded yet"}
-                  </span>
-                </article>
-
-                <article className="workspace-console__summary-card">
-                  <span className="workspace-console__summary-icon workspace-console__summary-icon--gold">
-                    <Coins size={15} />
-                  </span>
-                  <span className="workspace-console__summary-label">Revenue Captured</span>
-                  <strong>{formatRevenueMetric(revenueSummary.estimatedRevenue)} INIT</strong>
-                  <span className="workspace-console__summary-meta">
-                    {isAutoSignEnabled ? "Auto-sign session live" : "Manual approvals enabled"}
-                  </span>
-                </article>
-              </div>
+      <main className="app-main">
+        {!initiaAddress ? (
+          <div className="welcome-layout">
+            <WelcomeScreen onConnect={openConnect} />
+          </div>
+        ) : (
+          <div className="workspace workspace--immersive">
+            <div className="chat-stage">
+              <Chat
+                onRequestInventoryRefresh={requestInventoryRefresh}
+                onTransactionLog={handleTransactionLog}
+                displayUsername={displayUsername}
+              />
             </div>
 
-            <div className="workspace-console__toolbar">
-              <div
-                className="workspace-console__tabs"
-                role="tablist"
-                aria-label="Workspace views"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  id="workspace-tab-actions"
-                  aria-selected={activeConsoleTab === "actions"}
-                  aria-controls="workspace-panel-actions"
-                  className={`workspace-console__tab ${activeConsoleTab === "actions" ? "workspace-console__tab--active" : ""}`}
-                  onClick={() => setActiveConsoleTab("actions")}
-                >
-                  <Layers size={15} />
-                  Agent Actions
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  id="workspace-tab-revenue"
-                  aria-selected={activeConsoleTab === "revenue"}
-                  aria-controls="workspace-panel-revenue"
-                  className={`workspace-console__tab ${activeConsoleTab === "revenue" ? "workspace-console__tab--active" : ""}`}
-                  onClick={() => setActiveConsoleTab("revenue")}
-                >
-                  <Zap size={15} />
-                  Sequencer Revenue
-                </button>
-              </div>
+            <aside className="inspector-rail" aria-label="Sidebar tools">
+              <div className="inspector-rail__dock">
+                {inspectorPanels.map((panel) => {
+                  const Icon = panel.icon;
+                  const isActive = activeInspectorPanel === panel.id;
 
-              <div className="workspace-console__toolbar-side">
-                {activeConsoleTab === "actions" ? (
-                  <button
-                    type="button"
-                    className="workspace-console__refresh"
-                    onClick={() => void requestInventoryRefresh()}
-                  >
-                    <RefreshCw size={14} />
-                    Sync inventory
-                  </button>
-                ) : (
-                  <span className="workspace-console__live-pill">
-                    <span className="workspace-console__live-dot" />
-                    Auto updates on every completed tx
-                  </span>
-                )}
+                  return (
+                    <button
+                      key={panel.id}
+                      type="button"
+                      className={`inspector-rail__button ${isActive ? "inspector-rail__button--active" : ""}`}
+                      onClick={() => toggleInspectorPanel(panel.id)}
+                      aria-pressed={isActive}
+                      title={panel.label}
+                    >
+                      <Icon size={18} />
+                      <span>{panel.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            {activeInspectorPanel ? (
+              <div
+                className="inspector-backdrop"
+                onClick={() => setActiveInspectorPanel(null)}
+                aria-hidden="true"
+              />
+            ) : null}
+
+            <div
+              className={`inspector-drawer ${activeInspectorPanel ? "inspector-drawer--open" : ""}`}
+              aria-hidden={!activeInspectorPanel}
+            >
+              <button
+                type="button"
+                className="inspector-drawer__close"
+                onClick={() => setActiveInspectorPanel(null)}
+                aria-label="Close sidebar"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="inspector-drawer__body">
+                {renderInspectorContent()}
               </div>
             </div>
-
-            <div className="workspace-console__body">
-              <div
-                id="workspace-panel-actions"
-                role="tabpanel"
-                aria-labelledby="workspace-tab-actions"
-                className={`workspace-console__view ${activeConsoleTab === "actions" ? "" : "workspace-console__view--hidden"}`}
-              >
-                <Game
-                  embedded
-                  showHeader={false}
-                  onRefreshReady={handleRefreshRegistration}
-                  activityLog={activityLog}
-                  displayUsername={displayUsername}
-                />
-              </div>
-
-              <div
-                id="workspace-panel-revenue"
-                role="tabpanel"
-                aria-labelledby="workspace-tab-revenue"
-                className={`workspace-console__view ${activeConsoleTab === "revenue" ? "" : "workspace-console__view--hidden"}`}
-              >
-                <Revenue embedded showHeader={false} />
-              </div>
-            </div>
-          </section>
-        </div>
+          </div>
+        )}
       </main>
 
-      {toast && (
+      <footer className="app-footer">
+        <div className="app-footer__inner">
+          <span
+            className={`app-footer__note ${autoSignError ? "app-footer__note--error" : ""}`}
+          >
+            {autoSignError
+              ? autoSignError
+              : initiaAddress
+                ? `${walletLabel} connected`
+                : `Move appchain on ${appConfig.chainId}`}
+          </span>
+          <span className="app-footer__note">
+            {initiaAddress
+              ? revenueSummary.totalTx > 0
+                ? `${revenueSummary.totalTx.toLocaleString()} tx • ${formatRevenueMetric(revenueSummary.estimatedRevenue)} INIT revenue • ${shortenAddress(appConfig.moduleAddress)}`
+                : `Module ${shortenAddress(appConfig.moduleAddress)} • ${appConfig.moduleName}`
+              : `Module ${appConfig.moduleName} • ${shortenAddress(appConfig.moduleAddress)}`}
+          </span>
+        </div>
+      </footer>
+
+      {toast ? (
         <div className="toast" role="status">
-          <ShieldCheck size={16} />
           {toast}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

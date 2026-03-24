@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  LoaderCircle,
-  RefreshCw,
-  Waypoints,
-} from "lucide-react";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 
 import { appConfig } from "./config.js";
 import {
@@ -82,82 +76,63 @@ export default function Bridge({ initiaAddress, refreshNonce = 0 }) {
   }
 
   return (
-    <div className="bridge-section">
-      <div className="bridge-section__header">
-        <div className="bridge-section__copy">
-          <p className="eyebrow">Interwoven Bridge</p>
-          <h3>Bridge INIT Between L1 and Your Appchain</h3>
-          <p>
-            Native deposit and withdraw flows powered by InterwovenKit for{" "}
-            <code>{appConfig.l1ChainId}</code> and <code>{appConfig.chainId}</code>.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="refresh-button"
-          onClick={() => void loadBalances()}
-          disabled={!initiaAddress || isLoading}
-          aria-label="Refresh bridge balances"
-        >
-          {isLoading ? (
-            <LoaderCircle size={16} className="spin" />
-          ) : (
-            <RefreshCw size={16} />
-          )}
-        </button>
-      </div>
-
-      <div className="bridge-balance-grid">
-        <article className="bridge-balance-card">
-          <span className="bridge-balance-card__eyebrow">Initia L1</span>
-          <strong className="bridge-balance-card__value">
+    <div className="bridge-compact">
+      <div className="bridge-balances">
+        <article className="bridge-balance">
+          <span className="bridge-balance__label">L1 Balance</span>
+          <strong className="bridge-balance__value">
             {balances.l1Formatted} {appConfig.bridgeSymbol}
           </strong>
-          <span className="bridge-balance-card__meta">
-            {appConfig.l1ChainId} • {appConfig.bridgeDenom}
-          </span>
+          <span className="bridge-balance__meta">{appConfig.l1ChainId}</span>
         </article>
 
-        <article className="bridge-balance-card">
-          <span className="bridge-balance-card__eyebrow">Appchain Wallet</span>
-          <strong className="bridge-balance-card__value">
+        <article className="bridge-balance">
+          <span className="bridge-balance__label">L2 Balance</span>
+          <strong className="bridge-balance__value">
             {balances.l2Formatted} {appConfig.bridgeSymbol}
           </strong>
-          <span className="bridge-balance-card__meta">
-            {appConfig.chainId} • {appConfig.bridgeDenom}
-          </span>
+          <span className="bridge-balance__meta">{appConfig.chainId}</span>
         </article>
       </div>
 
       <div className="bridge-actions">
-        <button
-          type="button"
-          className="bridge-button"
-          onClick={handleDeposit}
-        >
-          <ArrowDownToLine size={16} />
-          Deposit INIT
+        <button type="button" className="bridge-button" onClick={handleDeposit}>
+          Deposit
         </button>
         <button
           type="button"
           className="bridge-button bridge-button--secondary"
           onClick={handleWithdraw}
         >
-          <ArrowUpFromLine size={16} />
-          Withdraw INIT
+          Withdraw
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => void loadBalances()}
+          disabled={isLoading}
+          aria-label="Refresh bridge balances"
+          title="Refresh bridge balances"
+        >
+          {isLoading ? (
+            <LoaderCircle size={14} className="spin" />
+          ) : (
+            <RefreshCw size={14} />
+          )}
         </button>
       </div>
 
-      <div className="bridge-note-row">
-        <Waypoints size={15} />
-        <p className="bridge-note">
-          The AI chat can open this same built-in deposit flow for you when you
-          ask to bridge INIT from L1.
-        </p>
-      </div>
+      <p className="bridge-note">
+        The AI chat can open this same deposit flow when you ask to bridge INIT
+        from L1.
+      </p>
 
-      {notice ? <p className="bridge-note bridge-note--success">{notice}</p> : null}
-      {error ? <p className="error-text">{error}</p> : null}
+      {notice ? (
+        <p className="inline-feedback inline-feedback--success">{notice}</p>
+      ) : null}
+      {error ? (
+        <p className="inline-feedback inline-feedback--error">{error}</p>
+      ) : null}
     </div>
   );
 }

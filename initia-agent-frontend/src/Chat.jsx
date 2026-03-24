@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import ReactMarkdown from "react-markdown";
-import { Bot, RotateCcw, SendHorizontal, User } from "lucide-react";
+import { Bot, RotateCcw, SendHorizontal, UserCircle2 } from "lucide-react";
 
-import { askAgent, clearAgentHistory, formatActionName, isRevenueRequest, normalizeMessage } from "./agent.js";
+import {
+  askAgent,
+  clearAgentHistory,
+  formatActionName,
+  isRevenueRequest,
+  normalizeMessage,
+} from "./agent.js";
 import {
   BRIDGE_STATUS_REFRESH_DELAY_MS,
   formatRequestedInitAmount,
@@ -33,10 +39,6 @@ function shortenHash(hash) {
   return `${hash.slice(0, 8)}\u2026${hash.slice(-4)}`;
 }
 
-function formatTime(date) {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
 function generateSessionId() {
   return (
     globalThis.crypto?.randomUUID?.() ??
@@ -50,14 +52,14 @@ const initialMessages = [
     [
       "**InitiaAgent is live onchain.**",
       "",
-      "I'm your AI companion for managing resources on the Initia blockchain. I can strategize, execute transactions, and track your progress. Try:",
+      "I can strategize, execute transactions, and track your progress. Try:",
       "",
-      "- `mint 5 shards` \u2014 gather resources",
-      "- `deposit 1 INIT from L1` \u2014 bridge funds",
-      "- `craft relic` \u2014 combine \u26a1 + \ud83d\udc8e \u2192 \ud83d\udd2e",
-      "- `upgrade relic` \u2014 forge \ud83d\udc51 legendary items",
-      "- `register my username` \u2014 claim a .init name",
-      "- Or just chat \u2014 ask me anything about Initia!",
+      "- `mint 5 shards`",
+      "- `deposit 1 INIT from L1`",
+      "- `craft relic`",
+      "- `upgrade relic`",
+      "- `register my username`",
+      "- Or ask me anything about Initia.",
     ].join("\n"),
     "info",
     { suggestions: ["Mint 5 shards", "Check inventory", "What is Initia?"] },
@@ -66,7 +68,7 @@ const initialMessages = [
 
 function formatInventoryMessage(inventory) {
   return [
-    "### \ud83c\udfaf Current Inventory",
+    "### Current Inventory",
     "",
     `| Resource | Count |`,
     `|----------|-------|`,
@@ -80,13 +82,13 @@ function formatInventoryMessage(inventory) {
 function formatExecutionMessage(intent, results, autoSignEnabled) {
   const txLines = results.map(
     ({ action, txHash }, index) =>
-      `${index + 1}. **${formatActionName(action.functionName)}** \u2192 \`${shortenHash(txHash)}\``,
+      `${index + 1}. **${formatActionName(action.functionName)}** -> \`${shortenHash(txHash)}\``,
   );
 
   const parts = [
     intent.message,
     "",
-    `\u2705 Submitted **${results.length}** transaction${results.length === 1 ? "" : "s"} on \`${appConfig.chainId}\`${autoSignEnabled ? " via auto-sign" : ""}`,
+    `Submitted **${results.length}** transaction${results.length === 1 ? "" : "s"} on \`${appConfig.chainId}\`${autoSignEnabled ? " via auto-sign" : ""}.`,
     "",
     ...txLines,
   ];
@@ -110,7 +112,7 @@ function formatExecutionError(error) {
   );
 
   return [
-    "\u274c **Transaction failed**",
+    "**Transaction failed**",
     "",
     detail,
     ...(partialResults.length > 0
@@ -120,7 +122,7 @@ function formatExecutionError(error) {
           "",
           ...partialResults.map(
             ({ action, txHash }, index) =>
-              `${index + 1}. **${formatActionName(action.functionName)}** \u2192 \`${shortenHash(txHash)}\``,
+              `${index + 1}. **${formatActionName(action.functionName)}** -> \`${shortenHash(txHash)}\``,
           ),
         ]
       : []),
@@ -135,13 +137,24 @@ function formatBridgeExecutionMessage(intent) {
   return [
     intent.message,
     "",
-    `\ud83c\udf09 Opened Interwoven Bridge deposit flow into \`${appConfig.chainId}\`.`,
+    `Opened the Interwoven Bridge deposit flow into \`${appConfig.chainId}\`.`,
     "",
     intent.bridge?.amount
-      ? `Confirm or enter **${amountLabel}** in the bridge modal to complete the L1 \u2192 L2 deposit.`
+      ? `Confirm or enter **${amountLabel}** in the bridge modal to complete the L1 -> L2 deposit.`
       : `Choose how much **${amountLabel}** to bridge from L1 in the modal, then confirm the transfer there.`,
   ].join("\n");
 }
+
+function formatTimestamp(date) {
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const DEFAULT_SUGGESTIONS = ["Mint 5 shards", "Check inventory", "Show revenue"];
 
 export default function Chat({ onRequestInventoryRefresh, onTransactionLog, displayUsername }) {
   const { initiaAddress, requestTxSync, autoSign, openDeposit } =
@@ -175,10 +188,11 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
 
   function handleSuggestionClick(suggestion) {
     if (isThinking) return;
+
     setDraft(suggestion);
-    // Auto-submit the suggestion
     setMessages((current) => [...current, createMessage("user", suggestion)]);
     setIsThinking(true);
+
     handleAgentPrompt(suggestion)
       .catch((error) => {
         console.error("Agent execution failed", error);
@@ -203,7 +217,6 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
   }
 
   async function handleAgentPrompt(prompt) {
-    // Handle revenue queries entirely on the client — the data lives in localStorage
     if (isRevenueRequest(normalizeMessage(prompt))) {
       const stats = getRevenueStats();
       const lines = [
@@ -215,15 +228,21 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
         `| Est. Revenue | **${stats.estimatedRevenue.toFixed(4)} INIT** |`,
         `| Tx/min (active) | **${stats.txPerMinute.toFixed(1)}** |`,
       ];
+
       if (Object.keys(stats.breakdown).length > 0) {
         lines.push("", "**Revenue by action:**");
         for (const [action, count] of Object.entries(stats.breakdown)) {
           lines.push(`- ${action}: **${count}** tx`);
         }
       }
+
       if (stats.totalTx === 0) {
-        lines.push("", "*No transactions yet — execute some agent actions to start generating revenue!*");
+        lines.push(
+          "",
+          "*No transactions yet. Execute some agent actions to start generating revenue.*",
+        );
       }
+
       setMessages((current) => [
         ...current,
         createMessage("assistant", lines.join("\n"), "info", {
@@ -291,32 +310,6 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
           "info",
           { suggestions: intent.suggestions },
         ),
-      ]);
-      return;
-    }
-
-    if (intent.type === "revenue") {
-      const stats = getRevenueStats();
-      const lines = [
-        intent.message,
-        "",
-        `| Metric | Value |`,
-        `|--------|-------|`,
-        `| Total Transactions | **${stats.totalTx}** |`,
-        `| Est. Revenue | **${stats.estimatedRevenue.toFixed(4)} INIT** |`,
-        `| Tx/min (active) | **${stats.txPerMinute.toFixed(1)}** |`,
-      ];
-      if (Object.keys(stats.breakdown).length > 0) {
-        lines.push("", "**By action:**");
-        for (const [action, count] of Object.entries(stats.breakdown)) {
-          lines.push(`- ${action}: ${count}`);
-        }
-      }
-      setMessages((current) => [
-        ...current,
-        createMessage("assistant", lines.join("\n"), "info", {
-          suggestions: intent.suggestions || ["Mint 5 shards", "Check inventory"],
-        }),
       ]);
       return;
     }
@@ -404,65 +397,52 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
     }
   }
 
-  // Find suggestions from the last assistant message
-  const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant");
+  const lastAssistantMsg = [...messages]
+    .reverse()
+    .find((message) => message.role === "assistant");
   const activeSuggestions =
-    !isThinking && lastAssistantMsg?.suggestions?.length > 0
-      ? lastAssistantMsg.suggestions
+    !isThinking
+      ? lastAssistantMsg?.suggestions?.length > 0
+        ? lastAssistantMsg.suggestions
+        : DEFAULT_SUGGESTIONS
       : [];
 
   return (
-    <section className="panel chat-panel">
-      <div className="panel-header">
+    <section className="surface chat-surface">
+      <div className="chat-header">
         <div>
-          <p className="eyebrow">AI Chat</p>
-          <h2>Mission Console</h2>
+          <p className="section-kicker">Conversation</p>
         </div>
-        <div className="panel-header__actions">
-          <button
-            type="button"
-            className="clear-chat-button"
-            onClick={handleClearHistory}
-            title="Clear conversation"
-          >
-            <RotateCcw size={14} />
-          </button>
-          <span
-            className={`panel-chip ${autoSignEnabled ? "panel-chip--active" : ""}`}
-          >
-            <span
-              className={`chip-dot ${autoSignEnabled ? "chip-dot--on" : ""}`}
-            />
-            {autoSignEnabled ? "Auto-sign ready" : "Manual approval"}
-          </span>
-        </div>
+
+        <button
+          type="button"
+          className="icon-button"
+          onClick={handleClearHistory}
+          title="Clear conversation"
+          aria-label="Clear conversation"
+        >
+          <RotateCcw size={14} />
+        </button>
       </div>
 
       <div className="message-list">
         {messages.map((message) => {
           const isAssistant = message.role === "assistant";
-          const variantClass =
-            isAssistant && message.variant !== "info"
-              ? `message--${message.variant}`
-              : "";
 
           return (
             <article
               key={message.id}
-              className={`message message--${message.role} ${variantClass} message-enter`}
+              className={`message message--${message.role} ${message.variant === "error" ? "message--error" : ""} ${message.variant === "action" ? "message--action" : ""}`}
+              title={formatTimestamp(message.timestamp)}
             >
-              <div className="message-avatar">
-                {isAssistant ? <Bot size={16} /> : <User size={16} />}
+              <div className="message-avatar" aria-hidden="true">
+                {isAssistant ? <Bot size={16} /> : <UserCircle2 size={16} />}
               </div>
-              <div className="message-bubble">
-                <div className="message-meta">
-                  <span className="message-role">
-                    {isAssistant ? "Agent" : displayUsername || "You"}
-                  </span>
-                  <span className="message-time">
-                    {formatTime(message.timestamp)}
-                  </span>
-                </div>
+
+              <div className="message-body">
+                {!isAssistant && displayUsername ? (
+                  <span className="message-sender">{displayUsername}</span>
+                ) : null}
                 {isAssistant ? (
                   <div className="markdown-body">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
@@ -475,44 +455,39 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
           );
         })}
 
-        {isThinking && (
-          <article className="message message--assistant message-enter">
-            <div className="message-avatar">
+        {isThinking ? (
+          <article className="message message--assistant" aria-live="polite">
+            <div className="message-avatar" aria-hidden="true">
               <Bot size={16} />
             </div>
-            <div className="message-bubble message-bubble--thinking">
-              <div className="message-meta">
-                <span className="message-role">Agent</span>
-              </div>
-              <div className="thinking-row">
-                <div className="thinking-dots">
-                  <span className="thinking-dot" />
-                  <span className="thinking-dot" />
-                  <span className="thinking-dot" />
-                </div>
-                <span>Processing onchain action\u2026</span>
+
+            <div className="message-body message-body--thinking">
+              <div className="thinking-dots" aria-label="Agent is thinking">
+                <span className="thinking-dot" />
+                <span className="thinking-dot" />
+                <span className="thinking-dot" />
               </div>
             </div>
           </article>
-        )}
+        ) : null}
 
         <div ref={endRef} />
       </div>
 
-      {activeSuggestions.length > 0 && (
-        <div className="suggestion-bar">
-          {activeSuggestions.map((s) => (
+      {activeSuggestions.length > 0 ? (
+        <div className="suggestion-bar" aria-label="Suggested prompts">
+          {activeSuggestions.map((suggestion) => (
             <button
-              key={s}
+              key={suggestion}
               type="button"
               className="suggestion-chip"
-              onClick={() => handleSuggestionClick(s)}
+              onClick={() => handleSuggestionClick(suggestion)}
             >
-              {s}
+              {suggestion}
             </button>
           ))}
         </div>
-      )}
+      ) : null}
 
       <form className="composer" onSubmit={handleSubmit}>
         <input
@@ -527,6 +502,7 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
           type="submit"
           className="send-button"
           disabled={!draft.trim() || isThinking}
+          aria-label="Send message"
         >
           <SendHorizontal size={16} />
         </button>
