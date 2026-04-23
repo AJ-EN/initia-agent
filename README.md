@@ -71,8 +71,33 @@ InitiaAgent is an AI-powered onchain control room built on its own Initia appcha
 5. Ask the agent to perform actions like `mint 5 shards`, `craft relic`, `upgrade relic`, or `check inventory`.
 6. Watch the frontend update with real-time L1/L2 bridge balances, .init username display, crafting readiness, and recent transaction history.
 
+## Judge Quick-Verify
+
+For judges who want to confirm the submission end-to-end in under 5 minutes:
+
+1. **Contract is live**: the `agent_actions` module is published at `0x37bedf9964326b808fbfe344edb0d564c1213dda` on the `initia-agent-1` rollup. Query inventory state directly:
+
+   ```bash
+   minitiad query move view \
+     0x37bedf9964326b808fbfe344edb0d564c1213dda \
+     agent_actions \
+     inventory_of \
+     --args 'address:<any_user_bech32>' \
+     --node http://localhost:26657
+   ```
+
+2. **Native features are wired, not stubbed**:
+   - Auto-signing: `autoSign.enable(chainId, { permissions: ["/initia.move.v1.MsgExecute"] })` — see `initia-agent-frontend/src/App.jsx` and `executor.js`
+   - Interwoven Bridge: `openBridge({ srcChainId: "initiation-2", srcDenom: "uinit" })` — see `Bridge.jsx`
+   - Initia Usernames: L1 registry lookup via `rest.move.view` on `usernames::get_name_from_address` — see `username.js`
+
+3. **Tests pass**: `cd initia-agent-contracts && minitiad move test` (13 Move unit tests cover mint/craft/upgrade happy paths + 6 expected-failure cases).
+
+4. **End-to-end reproduce**: follow `How to Run Locally` below; the demo video linked in `.initia/submission.json` walks through the exact same flow.
+
 ## Submission Metadata
 
+- Track: `AI`
 - Rollup chain ID: `initia-agent-1`
 - VM: `move`
 - Native features in the app: `auto-signing`, `Interwoven Bridge`, `Initia Usernames`

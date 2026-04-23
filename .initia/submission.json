@@ -1,11 +1,17 @@
 {
   "project_name": "InitiaAgent",
+  "track": "AI",
   "repo_url": "https://github.com/AJ-EN/initia-agent",
-  "commit_sha": "575755a1f6023a48e750eb7f5129cbde7b624147",
+  "commit_sha": "PLACEHOLDER_WILL_BE_UPDATED",
   "rollup_chain_id": "initia-agent-1",
   "deployed_address": "0x37bedf9964326b808fbfe344edb0d564c1213dda",
   "vm": "move",
   "native_feature": "auto-signing",
+  "native_features": [
+    "auto-signing",
+    "Interwoven Bridge",
+    "Initia Usernames"
+  ],
   "core_logic_path": "initia-agent-contracts/sources/agent_actions.move",
   "native_feature_frontend_path": "initia-agent-frontend/src/App.jsx",
   "demo_video_url": ""
