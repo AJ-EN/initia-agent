@@ -67,7 +67,7 @@ The *specific* demo — crafting shards → gems → relics → legendary relics
 
 - **Custom implementation**: Claude `tool_use` parses natural language → maps to Move entry functions (`mint_shard`, `mint_gem`, `craft_relic`, `upgrade_relic`) → backend emits structured action list → frontend batches them into `MsgExecute` calls signed by the auto-sign session. Inventory analysis and crafting recommendations are computed from live on-chain state.
 - **Native feature integration**:
-  1. **Auto-Signing** — `autoSign.enable(chainId, { permissions: ["/initia.move.v1.MsgExecute"] })`; headless transactions use `autoSign: true` + explicit `feeDenom: "umin"`.
+  1. **Auto-Signing** — `autoSign.enable(chainId)` in `App.jsx` creates a session for `initia-agent-1`; `requestTxSync` in `executor.js` passes `autoSign: true` + explicit `feeDenom: "umin"` for a headless flow.
   2. **Interwoven Bridge** — `openBridge` triggered by chat ("deposit 1 INIT from L1") or the bridge panel; uses `srcChainId: "initiation-2"` to avoid local-indexer resolution issues.
   3. **Initia Usernames (`.init`)** — L1 username registry lookup cached client-side; register flow available via chat ("call me ayush") or direct link.
 
@@ -142,7 +142,7 @@ The *specific* demo — crafting shards → gems → relics → legendary relics
    ```
 
 2. **Native features are wired, not stubbed**:
-   - Auto-signing: `autoSign.enable(chainId, { permissions: ["/initia.move.v1.MsgExecute"] })` — see `initia-agent-frontend/src/App.jsx` and `executor.js`
+   - Auto-signing: `autoSign.enable(chainId)` bound to the appchain in `App.jsx`; transactions pass `autoSign: true` + explicit `feeDenom` for a headless flow in `executor.js`
    - Interwoven Bridge: `openBridge({ srcChainId: "initiation-2", srcDenom: "uinit" })` — see `Bridge.jsx`
    - Initia Usernames: L1 registry lookup via `rest.move.view` — see `username.js`
 
