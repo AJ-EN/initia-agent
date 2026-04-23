@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 
 import { appConfig } from "./config.js";
@@ -18,6 +19,7 @@ const EMPTY_BALANCES = Object.freeze({
 
 export default function Bridge({ initiaAddress, refreshNonce = 0 }) {
   const { openDeposit, openWithdraw } = useInterwovenKit();
+  const queryClient = useQueryClient();
   const [balances, setBalances] = useState(EMPTY_BALANCES);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -51,7 +53,11 @@ export default function Bridge({ initiaAddress, refreshNonce = 0 }) {
     setNotice("");
 
     try {
-      openInitDepositFlow({ openDeposit, recipientAddress: initiaAddress });
+      openInitDepositFlow({
+        openDeposit,
+        queryClient,
+        recipientAddress: initiaAddress,
+      });
       setNotice(
         "Bridge modal opened. Confirm the deposit in InterwovenKit to move INIT from L1 into your appchain wallet.",
       );
@@ -65,7 +71,11 @@ export default function Bridge({ initiaAddress, refreshNonce = 0 }) {
     setNotice("");
 
     try {
-      openInitWithdrawFlow({ openWithdraw, recipientAddress: initiaAddress });
+      openInitWithdrawFlow({
+        openWithdraw,
+        queryClient,
+        recipientAddress: initiaAddress,
+      });
       setNotice(
         "Withdraw modal opened. Confirm the transfer in InterwovenKit to move INIT back to L1.",
       );

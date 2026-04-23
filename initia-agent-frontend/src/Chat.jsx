@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
+import { useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import { Bot, RotateCcw, SendHorizontal, UserCircle2 } from "lucide-react";
 
@@ -159,6 +160,7 @@ const DEFAULT_SUGGESTIONS = ["Mint 5 shards", "Check inventory", "Show revenue"]
 export default function Chat({ onRequestInventoryRefresh, onTransactionLog, displayUsername }) {
   const { initiaAddress, requestTxSync, autoSign, openDeposit } =
     useInterwovenKit();
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -318,6 +320,7 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
       try {
         openInitDepositFlow({
           openDeposit,
+          queryClient,
           recipientAddress: initiaAddress,
         });
       } catch (cause) {
