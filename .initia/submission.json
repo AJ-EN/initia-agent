@@ -2,7 +2,7 @@
   "project_name": "InitiaAgent",
   "track": "AI",
   "repo_url": "https://github.com/AJ-EN/initia-agent",
-  "commit_sha": "410a02ba9617b80ad00efa871c98b8206ff20b0c",
+  "commit_sha": "e18a05ae6540214cb1cf34db5be65229c98cd28a",
   "rollup_chain_id": "initia-agent-1",
   "deployed_address": "0x37bedf9964326b808fbfe344edb0d564c1213dda",
   "vm": "move",
