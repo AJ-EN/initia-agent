@@ -1,14 +1,8 @@
 import { useEffect, useState } from "react";
-import { useInterwovenKit } from "@initia/interwovenkit-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 
 import { appConfig } from "./config.js";
-import {
-  fetchInitBridgeBalances,
-  openInitDepositFlow,
-  openInitWithdrawFlow,
-} from "./bridge.js";
+import { fetchInitBridgeBalances } from "./bridge.js";
 
 const EMPTY_BALANCES = Object.freeze({
   l1Raw: "0",
@@ -18,12 +12,9 @@ const EMPTY_BALANCES = Object.freeze({
 });
 
 export default function Bridge({ initiaAddress, refreshNonce = 0 }) {
-  const { openDeposit, openWithdraw } = useInterwovenKit();
-  const queryClient = useQueryClient();
   const [balances, setBalances] = useState(EMPTY_BALANCES);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   async function loadBalances() {
     if (!initiaAddress) {
@@ -49,42 +40,6 @@ export default function Bridge({ initiaAddress, refreshNonce = 0 }) {
     void loadBalances();
   }, [initiaAddress, refreshNonce]);
 
-  function handleDeposit() {
-    setNotice("");
-
-    try {
-      openInitDepositFlow({
-        openDeposit,
-        queryClient,
-        recipientAddress: initiaAddress,
-      });
-      setNotice(
-        "Bridge modal opened. Confirm the deposit in InterwovenKit to move INIT from L1 into your appchain wallet.",
-      );
-    } catch (openError) {
-      console.error("Failed to open deposit modal", openError);
-      setError("Could not open the Interwoven Bridge deposit flow.");
-    }
-  }
-
-  function handleWithdraw() {
-    setNotice("");
-
-    try {
-      openInitWithdrawFlow({
-        openWithdraw,
-        queryClient,
-        recipientAddress: initiaAddress,
-      });
-      setNotice(
-        "Withdraw modal opened. Confirm the transfer in InterwovenKit to move INIT back to L1.",
-      );
-    } catch (openError) {
-      console.error("Failed to open withdraw modal", openError);
-      setError("Could not open the Interwoven Bridge withdraw flow.");
-    }
-  }
-
   return (
     <div className="bridge-compact">
       <div className="bridge-balances">
@@ -106,16 +61,6 @@ export default function Bridge({ initiaAddress, refreshNonce = 0 }) {
       </div>
 
       <div className="bridge-actions">
-        <button type="button" className="bridge-button" onClick={handleDeposit}>
-          Deposit
-        </button>
-        <button
-          type="button"
-          className="bridge-button bridge-button--secondary"
-          onClick={handleWithdraw}
-        >
-          Withdraw
-        </button>
         <button
           type="button"
           className="icon-button"
@@ -133,13 +78,12 @@ export default function Bridge({ initiaAddress, refreshNonce = 0 }) {
       </div>
 
       <p className="bridge-note">
-        The AI chat can open this same deposit flow when you ask to bridge INIT
-        from L1.
+        Interwoven Bridge deposit and withdraw are available on registered
+        mainnet appchains. This demo runs on a local testnet chain that
+        isn't indexed by the bridge router — the integration code is live
+        in <code>bridge.js</code> and wired into the AI chat flow.
       </p>
 
-      {notice ? (
-        <p className="inline-feedback inline-feedback--success">{notice}</p>
-      ) : null}
       {error ? (
         <p className="inline-feedback inline-feedback--error">{error}</p>
       ) : null}

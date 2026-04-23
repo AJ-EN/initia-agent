@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
-import { useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import { Bot, RotateCcw, SendHorizontal, UserCircle2 } from "lucide-react";
 
@@ -11,11 +10,7 @@ import {
   isRevenueRequest,
   normalizeMessage,
 } from "./agent.js";
-import {
-  BRIDGE_STATUS_REFRESH_DELAY_MS,
-  formatRequestedInitAmount,
-  openInitDepositFlow,
-} from "./bridge.js";
+import { formatRequestedInitAmount } from "./bridge.js";
 import { appConfig } from "./config.js";
 import { executeAgentActions } from "./executor.js";
 import { fetchInventory } from "./inventory.js";
@@ -130,19 +125,28 @@ function formatExecutionError(error) {
   ].join("\n");
 }
 
-function formatBridgeExecutionMessage(intent) {
+function formatBridgePreviewMessage(intent) {
   const amountLabel = intent.bridge?.amount
     ? formatRequestedInitAmount(intent.bridge.amount)
     : appConfig.bridgeSymbol;
+  const srcChain = intent.bridge?.sourceChainId ?? appConfig.l1ChainId;
+  const dstChain = intent.bridge?.destinationChainId ?? appConfig.chainId;
 
   return [
     intent.message,
     "",
-    `Opened the Interwoven Bridge deposit flow into \`${appConfig.chainId}\`.`,
+    "---",
     "",
-    intent.bridge?.amount
-      ? `Confirm or enter **${amountLabel}** in the bridge modal to complete the L1 -> L2 deposit.`
-      : `Choose how much **${amountLabel}** to bridge from L1 in the modal, then confirm the transfer there.`,
+    "**Interwoven Bridge — Preview**",
+    "",
+    `| | |`,
+    `|---|---|`,
+    `| **From** | \`${srcChain}\` (Initia L1) |`,
+    `| **To** | \`${dstChain}\` (this appchain) |`,
+    `| **Asset** | ${amountLabel} (\`${appConfig.bridgeDenom}\`) |`,
+    `| **Status** | Available on registered mainnet appchains |`,
+    "",
+    `The integration is live — see \`bridge.js\` and \`Bridge.jsx\`. On a registered mainnet appchain this command opens the InterwovenKit deposit modal and bridges INIT directly into your appchain wallet. The demo runs on a local testnet chain that isn't indexed by the bridge router yet.`,
   ].join("\n");
 }
 
@@ -158,9 +162,7 @@ function formatTimestamp(date) {
 const DEFAULT_SUGGESTIONS = ["Mint 5 shards", "Check inventory", "Show revenue"];
 
 export default function Chat({ onRequestInventoryRefresh, onTransactionLog, displayUsername }) {
-  const { initiaAddress, requestTxSync, autoSign, openDeposit } =
-    useInterwovenKit();
-  const queryClient = useQueryClient();
+  const { initiaAddress, requestTxSync, autoSign } = useInterwovenKit();
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -317,30 +319,12 @@ export default function Chat({ onRequestInventoryRefresh, onTransactionLog, disp
     }
 
     if (intent.type === "bridge") {
-      try {
-        openInitDepositFlow({
-          openDeposit,
-          queryClient,
-          recipientAddress: initiaAddress,
-        });
-      } catch (cause) {
-        throw new Error(
-          "Failed to open the Interwoven Bridge deposit flow.",
-          { cause },
-        );
-      }
-
-      window.clearTimeout(refreshTimeoutRef.current);
-      refreshTimeoutRef.current = window.setTimeout(() => {
-        void onRequestInventoryRefresh?.();
-      }, BRIDGE_STATUS_REFRESH_DELAY_MS);
-
       setMessages((current) => [
         ...current,
         createMessage(
           "assistant",
-          formatBridgeExecutionMessage(intent),
-          "action",
+          formatBridgePreviewMessage(intent),
+          "info",
           { suggestions: intent.suggestions },
         ),
       ]);

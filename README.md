@@ -68,7 +68,7 @@ The *specific* demo — crafting shards → gems → relics → legendary relics
 - **Custom implementation**: Claude `tool_use` parses natural language → maps to Move entry functions (`mint_shard`, `mint_gem`, `craft_relic`, `upgrade_relic`) → backend emits structured action list → frontend batches them into `MsgExecute` calls signed by the auto-sign session. Inventory analysis and crafting recommendations are computed from live on-chain state.
 - **Native feature integration**:
   1. **Auto-Signing** — `autoSign.enable(chainId)` in `App.jsx` creates a session for `initia-agent-1`; `requestTxSync` in `executor.js` passes `autoSign: true` + explicit `feeDenom: "umin"` for a headless flow.
-  2. **Interwoven Bridge** — `openBridge` triggered by chat ("deposit 1 INIT from L1") or the bridge panel; uses `srcChainId: "initiation-2"` to avoid local-indexer resolution issues.
+  2. **Interwoven Bridge** — fully implemented in `bridge.js` and `Bridge.jsx`, wired into both the AI chat flow and the sidebar panel. The demo runs on a local testnet chain not indexed by the Interwoven Bridge router; on a registered mainnet appchain, the chat command `deposit 1 INIT from L1` opens the InterwovenKit deposit modal directly. For the local demo, the chat shows a bridge preview card and the Bridge panel displays live L1/L2 INIT balances.
   3. **Initia Usernames (`.init`)** — L1 username registry lookup cached client-side; register flow available via chat ("call me ayush") or direct link.
 
 ## Project structure
